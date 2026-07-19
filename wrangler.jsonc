@@ -16,6 +16,13 @@
 	"upload_source_maps": true,
 	"compatibility_flags": [
 		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "myordo-db",
+			"database_id": "c8bed623-e7f8-46f0-a296-b860290c45d2"
+		}
 	]
 	/**
 	 * Smart Placement
