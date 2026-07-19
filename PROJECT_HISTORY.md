@@ -56,11 +56,21 @@ confined to `auth-context.ts`, never reaching route handlers.
       via curl that user-1 sees ONLY note-1 and user-2 sees ONLY note-2
 - [x] Fixed `listNotesForDate` to return `.results` only (was leaking D1's
       internal `.all()` envelope — `success`/`meta`/`served_by` — to the client)
-- [ ] NOT YET DONE: automated test for the isolation guarantee (currently
-      only verified by hand via curl — needs to be a real Vitest test using
-      `@cloudflare/vitest-pool-workers` so it runs in CI on every change)
-- [ ] NOT YET DONE: lint rule / CI check forbidding `.prepare(` outside
-      `tenant-db.ts` (architecture §8 "sacred infrastructure" requirement)
+- [x] Automated cross-tenant isolation test: `worker/tenant-db.test.ts`,
+      using Vitest + `@cloudflare/vitest-pool-workers` (0.18.6 / vitest 4.1.10).
+      Runs 3 tests against real D1 inside workerd: isolation guarantee,
+      constructor guard, membership scoping. `npm test` to run. See the
+      "Vitest / D1 gotchas" section below for setup issues hit along the way.
+- [x] Lint rule / build gate forbidding `.prepare(` outside `tenant-db.ts`
+      (architecture §8 "sacred infrastructure" requirement). ESLint's
+      `no-restricted-syntax` fires on any `.prepare()` call in `worker/**/*.ts`
+      except `tenant-db.ts` and its test file. Chained into `npm run build`
+      (`eslint . && tsc -b && vite build`), which is the exact command
+      Cloudflare's Workers Build runs -- so a violation fails the deploy,
+      not just a local lint pass. Verified by deliberately adding a raw
+      `.prepare()` call outside the choke point, confirming both
+      `npm run lint` and `npm run build` failed with a clear message, then
+      reverting and confirming both passed clean again.
 - [ ] NOT YET DONE: real Google OAuth. `auth-context.ts` currently stubs
       session verification via an `x-debug-user-id` header — THIS MUST
       NEVER SHIP TO PRODUCTION AS-IS
