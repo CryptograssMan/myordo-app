@@ -9,6 +9,16 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { TenantDB } from "./tenant-db.js";
 
+interface NoteRow {
+  id: string;
+  parish_id: string;
+  title: string | null;
+}
+
+interface MembershipRow {
+  parish_id: string;
+}
+
 async function applySchema() {
   // Mirrors migrations/0001_init.sql. Kept inline (rather than reading
   // the file) so this test has no filesystem dependency inside the
@@ -134,8 +144,14 @@ describe("TenantDB cross-tenant isolation", () => {
     const parish1Db = new TenantDB(env.DB, "parish-1");
     const parish2Db = new TenantDB(env.DB, "parish-2");
 
-    const parish1Notes = await parish1Db.listNotesForDate("2026-07-19", "user-1");
-    const parish2Notes = await parish2Db.listNotesForDate("2026-07-19", "user-2");
+    const parish1Notes = (await parish1Db.listNotesForDate(
+      "2026-07-19",
+      "user-1",
+    )) as unknown as NoteRow[];
+    const parish2Notes = (await parish2Db.listNotesForDate(
+      "2026-07-19",
+      "user-2",
+    )) as unknown as NoteRow[];
 
     expect(parish1Notes).toHaveLength(1);
     expect(parish1Notes[0].id).toBe("note-1");
@@ -147,8 +163,8 @@ describe("TenantDB cross-tenant isolation", () => {
 
     // The actual security assertion: neither parish's result set
     // contains the other parish's note id, under any circumstance.
-    const parish1NoteIds = parish1Notes.map((n: any) => n.id);
-    const parish2NoteIds = parish2Notes.map((n: any) => n.id);
+    const parish1NoteIds = parish1Notes.map((n) => n.id);
+    const parish2NoteIds = parish2Notes.map((n) => n.id);
     expect(parish1NoteIds).not.toContain("note-2");
     expect(parish2NoteIds).not.toContain("note-1");
   });
@@ -161,7 +177,8 @@ describe("TenantDB cross-tenant isolation", () => {
 
   it("findMembershipsForUser only returns active memberships for that user", async () => {
     const { results } = await TenantDB.findMembershipsForUser(env.DB, "user-1");
-    expect(results).toHaveLength(1);
-    expect((results[0] as any).parish_id).toBe("parish-1");
+    const rows = results as unknown as MembershipRow[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].parish_id).toBe("parish-1");
   });
 });
