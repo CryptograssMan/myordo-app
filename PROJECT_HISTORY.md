@@ -90,3 +90,39 @@ Test the API locally (once dev server is up):
 Seeded local test data (parish-1/user-1/note-1 and parish-2/user-2/note-2)
 already exists in the local D1 instance as of this session — see the
 session-handoff file for exact seed SQL if it needs to be recreated.
+
+
+## Vitest / D1 gotchas hit this session (worth remembering)
+
+- `@cloudflare/vitest-pool-workers` >=0.13 changed its config API:
+  `defineWorkersConfig` from `/config` is gone. Use the `cloudflareTest()`
+  Vite plugin from the package root instead, with plain `defineConfig`
+  from `vitest/config`. Also import `env` from `cloudflare:workers`, not
+  `cloudflare:test` (that module was removed in this version range).
+- `D1Database.exec()` splits input by newline and expects one statement
+  per line -- it cannot run a nicely multi-line-formatted CREATE TABLE.
+  Use `.prepare(sql).run()` instead, which treats the whole string as
+  one statement regardless of formatting.
+- D1 storage in `@cloudflare/vitest-pool-workers` persists across all
+  tests within the same test FILE (isolation is per-file, not per-test).
+  A `beforeEach` that just re-INSERTs seed data will hit UNIQUE constraint
+  violations on the second test. Fix: DROP TABLE IF EXISTS before each
+  CREATE in the schema setup, so every test starts from a真正 clean slate.
+
+## Vitest / D1 gotchas hit this session (worth remembering)
+
+- `@cloudflare/vitest-pool-workers` >=0.13 changed its config API:
+  `defineWorkersConfig` from `/config` is gone. Use the `cloudflareTest()`
+  Vite plugin from the package root instead, with plain `defineConfig`
+  from `vitest/config`. Also import `env` from `cloudflare:workers`, not
+  `cloudflare:test` (that module was removed in this version range).
+- `D1Database.exec()` splits input by newline and expects one statement
+  per line -- it cannot run a nicely multi-line-formatted CREATE TABLE.
+  Use `.prepare(sql).run()` instead, which treats the whole string as
+  one statement regardless of formatting.
+- D1 storage in `@cloudflare/vitest-pool-workers` persists across all
+  tests within the same test FILE (isolation is per-file, not per-test).
+  A `beforeEach` that just re-INSERTs seed data will hit UNIQUE constraint
+  violations on the second test. Fix: DROP TABLE IF EXISTS before each
+  CREATE in the schema setup, so every test starts from a genuinely
+  clean slate.
