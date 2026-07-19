@@ -118,3 +118,71 @@ session-handoff file for exact seed SQL if it needs to be recreated.
   violations on the second test. Fix: DROP TABLE IF EXISTS before each
   CREATE in the schema setup, so every test starts from a genuinely
   clean slate.
+
+## Beta scope decision (2026-07-19) — read this before touching provisioning/payments/compliance
+
+Goal: get ONE beta parish using the real product for free, to learn fast,
+before building anything payment-related. This deliberately defers large
+chunks of the original architecture doc. If you're an agent picking up
+this project, do NOT build the deferred items below unless explicitly
+asked — they are out of scope until beta feedback justifies them.
+
+### Deferred until post-beta (do not build yet)
+
+- PayMongo integration, webhook handler, Queue consumer (architecture §5).
+  The entire provisioning pipeline is replaced by a MANUAL seed: one
+  `parishes` row + `parish_memberships` rows inserted directly via
+  `wrangler d1 execute`, the same way we seeded test data in this session.
+- Admin self-serve invite UI. Staff rows are seeded by hand for the beta.
+- Vanity subdomain / per-parish branding polish. One parish, default
+  styling is fine.
+- Full compliance paperwork (privacy policy, DPO, NPC registration,
+  subprocessor terms — architecture §12). EXCEPTION: still ship the
+  one-line acceptable-use / data-minimization notice from §5 even in
+  beta — cheap to add, real insurance once real pastoral notes exist.
+- Tagalog feast-name content workstream (architecture §11/§9). English
+  labels only for beta.
+- Lectionary/reading-text licensing decision (architecture §11). Citations
+  + links only, as already scoped for Phase 1 — no change needed, just
+  confirming this isn't a beta blocker.
+- Robustness polish on offline conflict resolution (architecture §6) can
+  be simplified for a single small beta parish (3-10 users) — collision
+  risk is low at that scale. Do NOT skip the server-assigned `updated_at`
+  and append-only `note_revisions` mechanism itself (already built into
+  the schema) — that stays. Just don't over-invest in edge-case UI for
+  conflicts nobody will hit yet.
+
+### Required for beta (build these)
+
+1. Real Google OAuth (in progress as of this entry — see "Google OAuth"
+   section below). Replaces the `x-debug-user-id` header stub in
+   auth-context.ts. This is the one item from the original architecture
+   that is NOT deferred — a beta parish needs real login.
+2. Manual seed data for the beta parish itself (one parishes row, one
+   parish_memberships row per staff member) once OAuth is working —
+   no pipeline, just direct D1 inserts.
+3. romcal integration — client-side liturgical calendar engine, month/week
+   view, day detail modal (rank, color, feast name, lectionary citation).
+   This is the actual product surface; nothing exists yet beyond the one
+   GET /api/notes route.
+4. Notes UI — create/edit/list private and parish-public notes against a
+   date, wired to the existing (and soon-to-be-expanded) TenantDB-backed
+   API. The backend logic exists; no frontend exists yet.
+5. Basic PWA shell — offline app-shell caching (Vite PWA Plugin, per
+   architecture §2) so it behaves like an installed app. Full sync
+   robustness can wait; the app-shell caching itself should not.
+6. Deploy, seed the real beta parish, walk them through first login,
+   fix what breaks.
+
+### Rough session-by-session estimate (given to the human, logged for continuity)
+
+- Phase A: finish OAuth (in progress)
+- Phase B: manual beta-parish seed data (~30 min)
+- Phase C: romcal + calendar UI (1-2 sessions)
+- Phase D: notes UI (1 session)
+- Phase E: PWA shell + offline basics (1 session)
+- Phase F: seed real parish, walk-through, fix issues (1 session)
+
+Treat this as a floor, not a promise — this session alone hit several
+unpredictable tooling snags (vitest-pool-workers API changes, tsc build
+flags, D1 API quirks) that ate real time despite being "just setup."
