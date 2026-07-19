@@ -9,14 +9,14 @@
 //   2. Resolve active parish from parish_memberships
 //   3. Construct TenantDB(db, parish_id)
 
-import { TenantDB } from "./tenant-db";
+import { TenantDB } from "./tenant-db.js";
 
 export class AuthError extends Error {
-  constructor(
-    message: string,
-    public readonly status: 401 | 403 = 401,
-  ) {
+  public readonly status: 401 | 403;
+
+  constructor(message: string, status: 401 | 403 = 401) {
     super(message);
+    this.status = status;
   }
 }
 

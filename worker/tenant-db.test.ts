@@ -7,7 +7,7 @@
 
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { TenantDB } from "./tenant-db";
+import { TenantDB } from "./tenant-db.js";
 
 async function applySchema() {
   // Mirrors migrations/0001_init.sql. Kept inline (rather than reading

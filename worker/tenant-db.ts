@@ -10,13 +10,15 @@
 // should forbid `.prepare(` anywhere outside this file.
 
 export class TenantDB {
-  constructor(
-    private readonly db: D1Database,
-    private readonly parishId: string,
-  ) {
+  private readonly db: D1Database;
+  private readonly parishId: string;
+
+  constructor(db: D1Database, parishId: string) {
     if (!parishId) {
       throw new Error("TenantDB requires a non-empty parishId");
     }
+    this.db = db;
+    this.parishId = parishId;
   }
 
   // ---------------------------------------------------------------

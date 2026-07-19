@@ -1,4 +1,4 @@
-import { AuthError, resolveRequestContext } from "./auth-context";
+import { AuthError, resolveRequestContext } from "./auth-context.js";
 
 export default {
   async fetch(request, env) {
