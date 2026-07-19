@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply myordo-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply myordo-db --remote",
+    "test": "vitest run"
   },
   "dependencies": {
     "react": "^19.2.7",
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.45.1",
+    "@cloudflare/vitest-pool-workers": "^0.18.6",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
@@ -29,6 +33,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.1",
+    "vitest": "^4.1.10",
     "wrangler": "^4.112.0"
   }
 }
