@@ -71,9 +71,16 @@ confined to `auth-context.ts`, never reaching route handlers.
       `.prepare()` call outside the choke point, confirming both
       `npm run lint` and `npm run build` failed with a clear message, then
       reverting and confirming both passed clean again.
-- [ ] NOT YET DONE: real Google OAuth. `auth-context.ts` currently stubs
-      session verification via an `x-debug-user-id` header — THIS MUST
-      NEVER SHIP TO PRODUCTION AS-IS
+- [x] Real Google OAuth — DONE and verified in production (2026-07-19).
+      Invite-only per §5: `google-auth.ts` (OAuth code flow + D1 session
+      cookies), `auth-routes.ts` (/auth/google/login|callback|logout via
+      Hono, binds Google identity to a pre-seeded parish_memberships row,
+      flips invited->active, rejects non-invited emails), `auth-context.ts`
+      (session cookie -> user -> parish -> TenantDB). `index.ts` is now Hono
+      with `run_worker_first` for /auth/* + /api/*. Migration 0002 added the
+      sessions table. Verified: logged in as claravall.family@gmail.com
+      (seeded as invited admin of beta-parish), membership flipped to active,
+      /api/me and /api/notes resolved through the real session cookie.
 - [ ] NOT YET DONE: provisioning pipeline (PayMongo webhook -> Queue ->
       idempotent consumer, per architecture §5)
 - [ ] NOT YET DONE: romcal integration, PWA/offline sync, note revisions
@@ -186,3 +193,33 @@ asked — they are out of scope until beta feedback justifies them.
 Treat this as a floor, not a promise — this session alone hit several
 unpredictable tooling snags (vitest-pool-workers API changes, tsc build
 flags, D1 API quirks) that ate real time despite being "just setup."
+
+## ⚠️ DEPLOY BLOCKER — remote D1 migrations not applied
+
+Throughout this project we have ONLY run `npm run db:migrate:local`. The
+REMOTE (production) D1 database has had NO migrations applied — not even
+0001. This means:
+
+- The live Worker at https://myordo-app.pinoywheatgrass.workers.dev has
+  the code deployed, but its production D1 has NO tables. Any real login
+  or API call against prod will 500.
+- This is fine for now: beta testing runs locally, and no parish is
+  pointed at prod yet.
+
+BEFORE anyone logs into the production URL (i.e. before the beta parish
+is onboarded), apply migrations to remote:
+
+    npm run db:migrate:remote   # applies 0001 + 0002 to the real prod D1
+
+This is a REAL production database change — review the migration files
+first, and expect the same interactive "your database may not be
+available during migration" confirmation. After applying, the prod
+beta-parish + membership seed rows also need to be inserted against
+--remote (they currently only exist in local D1). See the OAuth section
+for the seed pattern (parishes + parish_memberships row, status
+'invited', user_id NULL, keyed to the beta admin's real Google email).
+
+Also confirm the production OAuth redirect URI is registered in Google
+Cloud console: https://myordo-app.pinoywheatgrass.workers.dev/auth/google/callback
+(the localhost one is already there and verified; the prod one should be
+too from initial setup, but verify before the first prod login).
