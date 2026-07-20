@@ -15,9 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@romcal/calendar.philippines": "^3.0.0-dev.125",
     "hono": "^4.12.31",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "romcal": "^3.0.0-dev.125"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.45.1",
