@@ -194,7 +194,7 @@ Treat this as a floor, not a promise — this session alone hit several
 unpredictable tooling snags (vitest-pool-workers API changes, tsc build
 flags, D1 API quirks) that ate real time despite being "just setup."
 
-## ⚠️ DEPLOY BLOCKER — remote D1 migrations not applied
+## ✅ RESOLVED (2026-07-20) — remote D1 migrations applied, beta parish live on prod
 
 Throughout this project we have ONLY run `npm run db:migrate:local`. The
 REMOTE (production) D1 database has had NO migrations applied — not even
@@ -223,3 +223,34 @@ Also confirm the production OAuth redirect URI is registered in Google
 Cloud console: https://myordo-app.pinoywheatgrass.workers.dev/auth/google/callback
 (the localhost one is already there and verified; the prod one should be
 too from initial setup, but verify before the first prod login).
+
+## Phase B complete (2026-07-20) — beta parish seeded, first prod login verified
+
+- Migrations 0001 + 0002 applied to REMOTE (production) D1 via
+  `npm run db:migrate:remote`. Confirmed via `sqlite_master` query that
+  all 7 tables exist on prod (previously the deploy blocker above).
+- `beta-parish` created on BOTH local and remote D1, with 7 seeded
+  `parish_memberships` rows (status 'invited', user_id NULL until first
+  login): claravall.family@gmail.com (admin), redmaroon1989@gmail.com
+  (admin), daquisrjr61883@gmail.com (admin), cristobalyang70@gmail.com
+  (admin), gjoel2455@gmail.com (staff), rochelledrosella@gmail.com
+  (staff), glenn.claravall@gmail.com (admin).
+- FIRST REAL PRODUCTION LOGIN VERIFIED: claravall.family@gmail.com logged
+  in at https://myordo-app.pinoywheatgrass.workers.dev/auth/google/login,
+  membership flipped invited -> active with user_id
+  71694690-6ccc-4e5b-9664-6c9835082eda bound, confirmed matching via
+  both GET /api/me and a direct `wrangler d1 execute --remote` query.
+- One transient `invalid_state` error was seen on an earlier attempt
+  (likely a stale oauth_state cookie from a partial/repeated attempt,
+  e.g. browser back button or a reused tab) -- resolved itself on a
+  clean attempt starting fresh at /auth/google/login. Not a code bug;
+  no fix needed unless it recurs.
+- REMAINING before other 6 people can log in: each of their emails must
+  be added as a Google OAuth "test user" in the Google Cloud console
+  (APIs & Services -> OAuth consent screen -> Test users) -- the app is
+  in Testing mode, so Google blocks any non-test-user account before it
+  ever reaches our invite gate. This has only been confirmed done for
+  claravall.family@gmail.com (the one that just logged in successfully).
+
+Phase B is functionally done. Next up per the beta roadmap: Phase C
+(romcal + calendar UI) -- the first real visible product surface.
