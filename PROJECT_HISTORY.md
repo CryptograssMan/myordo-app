@@ -254,3 +254,30 @@ too from initial setup, but verify before the first prod login).
 
 Phase B is functionally done. Next up per the beta roadmap: Phase C
 (romcal + calendar UI) -- the first real visible product surface.
+
+## Phase C progress (2026-07-21) — liturgical calendar engine + CBCP corrections
+
+- romcal@dev + @romcal/calendar.philippines@dev installed, wrapped in
+  src/lib/liturgicalCalendar.ts (client-side, English, Philippines_En).
+  Exposes a trimmed LiturgicalDayView shape; UI never touches romcal's
+  internal object directly.
+- CBCP CORRECTIONS LAYER (src/lib/philippineCorrections.ts) — implements
+  architecture §13. romcal's PH plugin lags the official CBCP calendar
+  (effective 1 Dec 2024 / LY2025):
+    * San Pedro Calungsod: ADDED on Oct 21 as a Feast (romcal omits him;
+      CBCP moved him April 2 -> Oct 21 and elevated to Feast).
+    * San Lorenzo Ruiz: UPGRADED Sept 28 memorial -> Feast.
+  Data-driven; further CBCP-diff findings slot in without code changes.
+- vitest split into two projects: 'workers' (cloudflare pool) and 'node'
+  (plain node, for romcal/pure-logic tests). 9/9 tests pass.
+- UPSTREAM CONTRIBUTION PENDING: a romcal GitHub issue reporting both
+  corrections is drafted and ready but NOT YET FILED. Draft text saved in
+  docs-romcal-contribution-draft.md. To be filed manually by the human
+  (CryptograssMan) at https://github.com/romcal/romcal/issues/new. Once
+  filed, record the issue URL here and in that draft file. If romcal later
+  merges the fix, our local override in philippineCorrections.ts can be
+  dropped.
+- NOT YET DONE in Phase C: the actual calendar UI (month/week views, day
+  detail modal). The engine is built and verified; no visible calendar
+  screen exists yet. romcal's true client-side bundle cost is still
+  unmeasured (it won't show until we import it into the React app).
