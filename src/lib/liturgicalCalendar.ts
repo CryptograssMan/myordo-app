@@ -1,23 +1,17 @@
 // src/lib/liturgicalCalendar.ts
 //
 // Thin wrapper around romcal (v3, @dev) configured for the Philippine
-// proper calendar in English, PLUS a corrections layer that patches known
-// discrepancies between romcal and the current official CBCP calendar
-// (see philippineCorrections.ts). All romcal interaction lives here so the
-// UI depends on our small stable shape, not romcal's full API.
+// proper calendar in English, PLUS a corrections layer (see
+// philippineCorrections.ts). All romcal interaction lives here so the UI
+// depends on our small stable shape, not romcal's full API.
 //
-// romcal runs entirely client-side (architecture §2) so the calendar works
-// offline. Philippines_En ships English feast names; Tagalog is a future
-// content task (architecture §9/§11).
+// romcal + the Philippines plugin are ~850kB of JS. To keep first paint
+// fast on mobile (architecture §2/§6 — PWA on Philippine mobile networks),
+// they are LAZY-LOADED via dynamic import() inside generateYear() rather
+// than imported at the top level. The app shell renders immediately; the
+// calendar engine streams in on demand (the UI shows a loading state).
 
-import { Romcal } from "romcal";
-import { Philippines_En } from "@romcal/calendar.philippines";
 import { PHILIPPINE_CORRECTIONS } from "./philippineCorrections";
-
-const romcal = new Romcal({
-  localizedCalendar: Philippines_En,
-  scope: "gregorian",
-});
 
 export interface LiturgicalDayView {
   date: string;
@@ -31,6 +25,24 @@ export interface LiturgicalDayView {
 }
 
 export type CalendarYear = Record<string, LiturgicalDayView[]>;
+
+// Cache the constructed Romcal instance across calls. Typed loosely as
+// the dynamic import's runtime shape; we only touch generateCalendar().
+let romcalInstance: { generateCalendar: (year?: number) => Promise<unknown> } | null =
+  null;
+
+async function getRomcal() {
+  if (romcalInstance) return romcalInstance;
+  const [{ Romcal }, { Philippines_En }] = await Promise.all([
+    import("romcal"),
+    import("@romcal/calendar.philippines"),
+  ]);
+  romcalInstance = new Romcal({
+    localizedCalendar: Philippines_En,
+    scope: "gregorian",
+  });
+  return romcalInstance;
+}
 
 function toView(day: {
   date: string;
@@ -60,14 +72,10 @@ function iso(year: number, month: number, day: number): string {
   return `${year}-${mm}-${dd}`;
 }
 
-// Apply CBCP corrections over romcal's raw output for a given year.
 function applyCorrections(year: number, cal: CalendarYear): CalendarYear {
   for (const correction of PHILIPPINE_CORRECTIONS) {
     const date = iso(year, correction.month, correction.day);
     const existing = cal[date] ?? [];
-
-    // Inherit season context from whatever romcal already computed for
-    // that date, so our corrected day isn't missing season info.
     const seasonNames = existing[0]?.seasonNames ?? [];
     const corrected: LiturgicalDayView = {
       ...correction.day_view,
@@ -81,13 +89,12 @@ function applyCorrections(year: number, cal: CalendarYear): CalendarYear {
         d.name.toLowerCase().includes(needle),
       );
       if (idx >= 0) {
-        existing[idx] = corrected; // upgrade in place
+        existing[idx] = corrected;
       } else {
-        existing.unshift(corrected); // wasn't there; add as default
+        existing.unshift(corrected);
       }
       cal[date] = existing;
     } else {
-      // ADD as the new default (highest-precedence) celebration.
       cal[date] = [corrected, ...existing];
     }
   }
@@ -95,12 +102,11 @@ function applyCorrections(year: number, cal: CalendarYear): CalendarYear {
 }
 
 export async function generateYear(year: number): Promise<CalendarYear> {
-  const raw = await romcal.generateCalendar(year);
+  const romcal = await getRomcal();
+  const raw = (await romcal.generateCalendar(year)) as Record<string, unknown[]>;
   const out: CalendarYear = {};
   for (const [date, days] of Object.entries(raw)) {
-    out[date] = (days as unknown[]).map((d) =>
-      toView(d as Parameters<typeof toView>[0]),
-    );
+    out[date] = days.map((d) => toView(d as Parameters<typeof toView>[0]));
   }
   return applyCorrections(year, out);
 }
