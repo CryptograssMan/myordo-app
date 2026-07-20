@@ -23,7 +23,13 @@ app.use("/api/*", async (c, next) => {
 
 app.get("/api/me", (c) => {
   const ctx = c.get("ctx");
-  return c.json({ userId: ctx.userId, parishId: ctx.parishId, role: ctx.role });
+  return c.json({
+    userId: ctx.userId,
+    parishId: ctx.parishId,
+    role: ctx.role,
+    email: ctx.userEmail,
+    parishName: ctx.parishName,
+  });
 });
 
 app.get("/api/notes", async (c) => {

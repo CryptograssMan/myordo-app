@@ -26,6 +26,8 @@ export interface RequestContext {
   userId: string;
   parishId: string;
   role: "admin" | "staff";
+  userEmail: string;
+  parishName: string;
   tenantDb: TenantDB;
 }
 
@@ -67,11 +69,14 @@ export async function resolveRequestContext(
 
   // 3. Construct TenantDB(db, parish_id)
   const tenantDb = new TenantDB(env.DB, membership.parish_id);
+  const info = await tenantDb.displayInfo(userId);
 
   return {
     userId,
     parishId: membership.parish_id,
     role: membership.role,
+    userEmail: info?.email ?? "",
+    parishName: info?.parishName ?? "",
     tenantDb,
   };
 }

@@ -204,6 +204,22 @@ export class TenantDB {
       .run();
   }
 
+  /**
+   * Display info for headers/UI: the parish name and this user's email.
+   * Parish-scoped (parish name comes from this.parishId).
+   */
+  async displayInfo(userId: string): Promise<{ parishName: string; email: string } | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT p.name AS parish_name, u.email AS email
+         FROM parishes p, users u
+         WHERE p.id = ?1 AND u.id = ?2`,
+      )
+      .bind(this.parishId, userId)
+      .first<{ parish_name: string; email: string }>();
+    return row ? { parishName: row.parish_name, email: row.email } : null;
+  }
+
   // ---------------------------------------------------------------
   // Membership (called from auth-context.ts before a TenantDB exists;
   // intentionally NOT parish-scoped — its job is to discover the parish)

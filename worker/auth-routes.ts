@@ -129,5 +129,5 @@ authRoutes.post("/logout", async (c) => {
   const sessionId = getCookie(c, SESSION_COOKIE_NAME);
   if (sessionId) await destroySession(c.env, sessionId);
   deleteCookie(c, SESSION_COOKIE_NAME, { path: "/" });
-  return c.json({ ok: true });
+  return c.redirect(`${c.env.APP_BASE_URL}/`);
 });
