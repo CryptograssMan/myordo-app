@@ -417,3 +417,22 @@ deployed to production (commit 3748bcf).
 4. **CBCP-ECBA outreach** (Mrs. Vicky Franco, bea@bible.org.ph, 09178590036)
    — now a strong pitch with the full year implemented + attributed. For
    permission/partnership/endorsement and ideally the source data file.
+
+## Parked feature — admin-editable readings (per-parish overrides) (2026-07-22)
+
+Requested: let parish admins edit the daily readings, for (a) typo correction
+and (b) priest's special-occasion readings (weddings, fiestas, anniversaries).
+
+Design decided but NOT built (parked):
+- Readings currently live in src/lib/readings.ts — a static bundled file, same
+  for every parish, NOT per-parish DB data. So "editing" must be per-parish
+  OVERRIDES, never edits to the shared source (which would break tenant
+  isolation and can't persist in a bundled file anyway).
+- Build shape when we do it: a parish-scoped `reading_overrides` table (like
+  notes: parish_id NOT NULL, via TenantDB), TenantDB methods, API routes with
+  the admin role gate, and edit UI in the readings section of the day panel.
+  readingsForDate() would merge: global default + parish override.
+- Open design Qs to resolve when building: free-text citation line (leaning
+  yes) vs structured fields; and whether an override REPLACES a day's readings
+  (covers typo-fix + most cases) or can ADD an extra Mass set (wedding/fiesta
+  alongside the normal readings). Possibly support both.
