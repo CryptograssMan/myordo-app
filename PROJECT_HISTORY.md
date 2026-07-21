@@ -304,3 +304,62 @@ default) but humans should always use myordo.cenaclelabs.com.
   http://localhost:5173, so localhost login still works.
 - Verified: fresh login as claravall.family@gmail.com on
   https://myordo.cenaclelabs.com works end-to-end, no invalid_state.
+
+## Phase C + D complete (2026-07-21) — calendar UI + notes, deployed to prod
+
+### ✅ Remote migration blocker RESOLVED
+Migration 0003 (last_edited_by_user_id) is now applied to REMOTE production
+D1. Prod D1 is current through 0003. (Symptom before fix: notes query 500'd
+on prod because the deployed code referenced a column prod's DB lacked.)
+Reminder for future migrations: after `npm run db:migrate:local`, ALSO run
+`npm run db:migrate:remote` before testing that feature on the live domain.
+
+### Phase C — Liturgical calendar UI (DONE, deployed)
+- Month-grid calendar (week starts Sunday) where liturgical color is the
+  signature visual system: each day has a colored spine + soft wash from its
+  canonical color; ranked days show feast names; season label under the
+  month title. Warm-paper ecclesiastical design. src/MonthGrid.tsx/.css.
+- romcal + PH plugin lazy-loaded via dynamic import() (first paint ~62kB
+  gzip; romcal ~850kB streams in behind a loading state).
+
+### Phase D — Notes (DONE, deployed)
+- Day-detail side panel (src/DayPanel.tsx/.css): click a day -> panel slides
+  in with liturgical header + notes. Two sections: "Parish notes" (public,
+  with email-prefix attribution) and "My private note".
+- Full create/edit/delete via src/lib/noteActions.ts + useDayNotes.ts.
+  MULTIPLE notes per day allowed for BOTH private and public.
+- Permission matrix (enforced server-side, 10 TenantDB tests + route gate;
+  UI mirrors it): private = author-only read+write; public = all staff read,
+  admins only write; any admin can edit/delete any public note; attribution
+  = email prefix of last editor (or author). Soft delete (deleted_at).
+
+### App shell / auth (DONE, deployed)
+- Login gate: /api/me on load -> loading | Google sign-in screen | app.
+- Personalized topbar: "<email-prefix> · <parish name>" + role badge +
+  Sign out (logout now redirects to /).
+- /api/me returns email + parishName (via TenantDB.displayInfo).
+
+### Canonical domain
+- Production URL is https://myordo.cenaclelabs.com (custom domain on the
+  Worker). APP_BASE_URL points here. The .workers.dev URL still resolves but
+  humans use the cenaclelabs.com domain. Google OAuth redirect URIs cover
+  the cenaclelabs.com callback + localhost.
+
+### Beta parish data
+- Parish id 'beta-parish' (internal PK, unchanged) is now named
+  "Don Bosco Sta Rosa", slug 'don-bosco-sta-rosa', on BOTH local and remote.
+- 7 seeded memberships (see earlier Phase B entry). Remaining before the
+  other members can log in: add their emails as Google OAuth "test users"
+  in the Google Cloud console (app is in Testing mode).
+
+### romcal upstream contribution — STILL NOT FILED
+- The CBCP corrections issue draft (docs-romcal-contribution-draft.md) is
+  still ready but not yet filed at github.com/romcal/romcal/issues/new.
+
+### State of the beta
+myORDO is FUNCTIONALLY COMPLETE for beta: on the live domain, a parish admin
+can log in, see an accurate Philippine liturgical calendar (with the Filipino
+saints correct via the corrections layer), and post parish-wide notes + keep
+private journals, all correctly permissioned. Not yet done: PWA offline shell
+(Phase E), full CBCP ordo diff (§13), compliance paperwork (deferred per beta
+scope), and general polish.
