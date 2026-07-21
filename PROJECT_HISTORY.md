@@ -436,3 +436,25 @@ Design decided but NOT built (parked):
   yes) vs structured fields; and whether an override REPLACES a day's readings
   (covers typo-fix + most cases) or can ADD an extra Mass set (wedding/fiesta
   alongside the normal readings). Possibly support both.
+
+## In-app browser sign-in fix (2026-07-22)
+
+Real user (iPhone) hit Google "403: disallowed_useragent / Access blocked"
+on sign-in. Cause: she opened a shared link inside an app's in-app browser
+(WebView) — Google blocks OAuth in embedded browsers for security (since 2021).
+NOT a bug; works in real Safari/Chrome. But since distribution is via shared
+links in Messenger/Facebook/etc., a meaningful share of parish staff will hit
+this. Cannot be fixed by making OAuth work in the WebView (impossible) — the
+only real fix is guiding users out to a real browser.
+
+Fix (commit f925519, deployed): src/lib/inAppBrowser.ts does conservative UA
+detection for Messenger, Facebook, Instagram, Threads, Viber, WhatsApp,
+Telegram, TikTok (unambiguous signatures only — never flags a real browser).
+When detected, the sign-in screen shows a friendly notice above the Google
+button with "open in Safari/Chrome" instructions + a Copy link button. The
+Sign in with Google button renders unconditionally, so real browsers are
+unaffected and a misdetection can't block anyone. Verified: normal browser
+unchanged; spoofed Messenger UA shows the notice.
+
+User guidance for this error: reopen myordo.cenaclelabs.com, tap Copy link,
+paste into Safari (or use the in-app browser's "Open in Safari" menu option).
