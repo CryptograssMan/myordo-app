@@ -458,3 +458,18 @@ unchanged; spoofed Messenger UA shows the notice.
 
 User guidance for this error: reopen myordo.cenaclelabs.com, tap Copy link,
 paste into Safari (or use the in-app browser's "Open in Safari" menu option).
+
+## Liturgical color legibility fix (2026-07-22)
+
+Reported "bug": two Memorials (St. Martin Nov 11, St. Josaphat Nov 12) showed
+different colors. NOT a bug — liturgically correct (Josaphat is a martyr = RED;
+Martin a non-martyr bishop = WHITE). romcal returns the right colors. The real
+issue: WHITE (#c8a94e) and GOLD (#c19a3e) spines were near-identical golds, so
+white days looked like gold feasts.
+
+Fix (committed, deployed): WHITE -> soft ivory #d8c9a3; GOLD -> deep goldenrod
+#9c6b0a (separated by depth). Plus rank-driven spine WIDTH in MonthGrid:
+solemnities 7px (.cal__spine--solemnity), feasts 5px (.cal__spine--feast),
+others 4px — major days pop by weight, not just hue. Uses c.rank already at
+the cell. Verified Nov 2026: All Saints / Christ the King bold deep-gold;
+white memorials quiet ivory; reds distinct.
