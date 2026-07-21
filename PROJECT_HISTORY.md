@@ -281,3 +281,26 @@ Phase B is functionally done. Next up per the beta roadmap: Phase C
   detail modal). The engine is built and verified; no visible calendar
   screen exists yet. romcal's true client-side bundle cost is still
   unmeasured (it won't show until we import it into the React app).
+
+## Canonical production domain (2026-07-21)
+
+myordo.cenaclelabs.com is the ONE canonical production domain — NOT the
+myordo-app.pinoywheatgrass.workers.dev subdomain that appears throughout
+earlier history. The .workers.dev URL still resolves (it's the Worker's
+default) but humans should always use myordo.cenaclelabs.com.
+
+- The custom domain was already attached to the Worker (Cloudflare dash ->
+  Workers -> myordo-app -> Domains, cenaclelabs.com zone), but APP_BASE_URL
+  in wrangler.jsonc still pointed at .workers.dev. That mismatch caused
+  OAuth invalid_state errors: the app served on cenaclelabs.com but the
+  callback redirected to .workers.dev, so the oauth_state cookie didn't
+  travel across domains. Fixed by pointing APP_BASE_URL at
+  https://myordo.cenaclelabs.com.
+- Google OAuth client now has these Authorized redirect URIs:
+  https://myordo.cenaclelabs.com/auth/google/callback (canonical),
+  http://localhost:5173/auth/google/callback (local dev). The old
+  .workers.dev callback URI can be removed later; harmless to leave.
+- Local dev is unchanged: .dev.vars overrides APP_BASE_URL to
+  http://localhost:5173, so localhost login still works.
+- Verified: fresh login as claravall.family@gmail.com on
+  https://myordo.cenaclelabs.com works end-to-end, no invalid_state.
