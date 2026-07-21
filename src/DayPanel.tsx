@@ -274,7 +274,7 @@ export function DayPanel({ isoDate, celebration, role, onClose }: DayPanelProps)
                   {/* Private note — both roles; author-only */}
                   <section className="notesec">
                     <div className="notesec__head">
-                      <h3 className="notesec__title">My private note</h3>
+                      <h3 className="notesec__title">My private notes</h3>
                       {editing !== "new-private" && (
                         <button className="linkbtn" onClick={() => setEditing("new-private")}>
                           + Add
@@ -290,7 +290,7 @@ export function DayPanel({ isoDate, celebration, role, onClose }: DayPanelProps)
                       />
                     )}
                     {privateNotes.length === 0 && editing !== "new-private" ? (
-                      <p className="daypanel__muted">No private note yet.</p>
+                      <p className="daypanel__muted">No private notes yet.</p>
                     ) : (
                       privateNotes.map((n) =>
                         editing === n.id ? (
