@@ -377,3 +377,11 @@ Decision: NOT fixing for beta. DDG has low share and working around it
 would mean weakening the standard oauth_state CSRF protection. Acceptable
 answer for a beta user on DDG: "use Chrome or Safari to sign in." Revisit
 only if real usage shows meaningful DDG traffic.
+
+## Beta staff can now log in (2026-07-21)
+
+All 7 Don Bosco Sta Rosa staff emails are now added as Google OAuth test
+users, so they can authenticate while the app is in Testing mode. Combined
+with the seeded invited memberships, each can log in and be scoped to the
+parish on first Google sign-in (invited -> active). No remaining auth
+blocker for the beta roster.
