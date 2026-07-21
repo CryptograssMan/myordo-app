@@ -163,7 +163,13 @@ export function MonthGrid({ role }: { role: "admin" | "staff" }) {
               className={`cal__cell cal__cell--btn${isToday ? " cal__cell--today" : ""}${isSunday ? " cal__cell--sun" : ""}${isSelected ? " cal__cell--selected" : ""}`}
               style={{ background: token.wash }}
             >
-              <span className="cal__spine" style={{ background: token.spine }} />
+              <span
+                className={`cal__spine${
+                  c?.rank === "SOLEMNITY" ? " cal__spine--solemnity"
+                    : c?.rank === "FEAST" ? " cal__spine--feast" : ""
+                }`}
+                style={{ background: token.spine }}
+              />
               <span className="cal__date">{cell.day}</span>
               {named && (
                 <span className="cal__feast" style={{ color: token.ink }}>

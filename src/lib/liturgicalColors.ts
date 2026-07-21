@@ -20,8 +20,8 @@ export interface LiturgicalColorToken {
 
 const TOKENS: Record<string, LiturgicalColorToken> = {
   GREEN: { label: "Green", spine: "#3f6b4c", wash: "#f1f5ee", ink: "#233829" },
-  WHITE: { label: "White", spine: "#c8a94e", wash: "#faf7ef", ink: "#5c4a1e" },
-  GOLD: { label: "Gold", spine: "#c19a3e", wash: "#faf5e6", ink: "#5c4a1e" },
+  WHITE: { label: "White", spine: "#d8c9a3", wash: "#fbf8f0", ink: "#6b5c38" },
+  GOLD: { label: "Gold", spine: "#9c6b0a", wash: "#f7e9c8", ink: "#5c4a1e" },
   RED: { label: "Red", spine: "#9e3630", wash: "#f8eeec", ink: "#5a201c" },
   VIOLET: { label: "Violet", spine: "#5b4a7e", wash: "#f1eef6", ink: "#33264a" },
   PURPLE: { label: "Violet", spine: "#5b4a7e", wash: "#f1eef6", ink: "#33264a" },
