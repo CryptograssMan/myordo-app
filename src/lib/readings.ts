@@ -184,7 +184,10 @@ const READINGS: Record<string, DayReadings> = {
   "2025-12-25": {
     title: "THE NATIVITY OF THE LORD S. Holy Day of Obligation.",
     sets: [
-      { label: "Vigil", citation: "Is 62:1-5 / Ps 89:4-5, 16-17, 27, 29 / Acts 13:16-17, 22-25 / Mt 1:1-25, Midnight: Is 9:1-6 / Ps 96:1-2, 2-3, 11-12, 13 / Ti 2:11-14 / Lk 2:1-14, Dawn: Is 62:11-12 / Ps 97:1, 6, 11-12 / Ti 3:4-7 / Lk 2:15-20, Day: Is 52:7-10 / Ps 98:1, 2-3, 3-4, 5-6 / Heb 1:1-6 / Jn 1:1-18", response: "For ever I will sing the goodness of the Lord. (Psalm for Vigil Mass)" },
+      { label: "Vigil", citation: "Is 62:1-5 / Ps 89:4-5, 16-17, 27, 29 / Acts 13:16-17, 22-25 / Mt 1:1-25", response: "For ever I will sing the goodness of the Lord. (Psalm for Vigil Mass)" },
+      { label: "Mass at Midnight", citation: "Is 9:1-6 / Ps 96:1-2, 2-3, 11-12, 13 / Ti 2:11-14 / Lk 2:1-14", response: null },
+      { label: "Mass at Dawn", citation: "Is 62:11-12 / Ps 97:1, 6, 11-12 / Ti 3:4-7 / Lk 2:15-20", response: null },
+      { label: "Mass during the Day", citation: "Is 52:7-10 / Ps 98:1, 2-3, 3-4, 5-6 / Heb 1:1-6 / Jn 1:1-18", response: null },
     ],
   },
   "2025-12-26": {
@@ -749,7 +752,8 @@ const READINGS: Record<string, DayReadings> = {
   "2026-03-29": {
     title: "PALM SUNDAY OF THE LORD'S PASSION",
     sets: [
-      { label: "Procession", citation: "Mt 21:1-11, Mass: Is 50:4-7 / Ps 22:8-9, 17-18, 19-20, 23-24 / Phil 2:6-11 / Mt 26:14-27:66", response: "My God, my God, why have you abandoned me?" },
+      { label: "Procession", citation: "Mt 21:1-11", response: null },
+      { label: "Mass", citation: "Is 50:4-7 / Ps 22:8-9, 17-18, 19-20, 23-24 / Phil 2:6-11 / Mt 26:14-27:66", response: "My God, my God, why have you abandoned me?" },
     ],
   },
   "2026-03-30": {
@@ -1083,9 +1087,10 @@ const READINGS: Record<string, DayReadings> = {
     ],
   },
   "2026-05-24": {
-    title: "PENTECOST S",
+    title: "PENTECOST SUNDAY",
     sets: [
-      { label: "Vigil", citation: "Gn 11:1-9 or Ex 19:3-8a, 16-20b or Ez 37:1-4 or J13:1-5 / Ps 104:1-2, 24, 35, 27-28, 29, 30 / Rom 8:22-27 / Jn 7:37-39, Day: Acts 2:1-11 / Ps 104:1, 24, 29-30, 31, 34 / 1 Cor 12:3b-7, 12-13 / Jn 20:19-23", response: "Lord, send out your Spirit, and renew the face of the earth." },
+      { label: "Vigil", citation: "Gn 11:1-9 or Ex 19:3-8a, 16-20b or Ez 37:1-4 or Jl 3:1-5 / Ps 104:1-2, 24, 35, 27-28, 29, 30 / Rom 8:22-27 / Jn 7:37-39", response: null },
+      { label: "Mass during the Day", citation: "Acts 2:1-11 / Ps 104:1, 24, 29-30, 31, 34 / 1 Cor 12:3b-7, 12-13 / Jn 20:19-23", response: "Lord, send out your Spirit, and renew the face of the earth." },
     ],
   },
   "2026-05-25": {
