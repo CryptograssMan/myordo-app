@@ -5,6 +5,8 @@ import {
   type LiturgicalDayView,
 } from "./lib/liturgicalCalendar";
 import { colorToken } from "./lib/liturgicalColors";
+import { DayPanel } from "./DayPanel";
+import "./DayPanel.css";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
@@ -57,6 +59,7 @@ export function MonthGrid() {
   const [month, setMonth] = useState(today.getMonth());
   const [calendar, setCalendar] = useState<CalendarYear | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedIso, setSelectedIso] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -151,10 +154,13 @@ export function MonthGrid() {
           const named = c && NAMED_RANKS.has(c.rank);
           const isToday = cell.iso === todayIso;
           const isSunday = i % 7 === 0;
+          const isSelected = cell.iso === selectedIso;
           return (
-            <div
+            <button
+              type="button"
               key={cell.iso}
-              className={`cal__cell${isToday ? " cal__cell--today" : ""}${isSunday ? " cal__cell--sun" : ""}`}
+              onClick={() => setSelectedIso(cell.iso)}
+              className={`cal__cell cal__cell--btn${isToday ? " cal__cell--today" : ""}${isSunday ? " cal__cell--sun" : ""}${isSelected ? " cal__cell--selected" : ""}`}
               style={{ background: token.wash }}
             >
               <span className="cal__spine" style={{ background: token.spine }} />
@@ -164,10 +170,16 @@ export function MonthGrid() {
                   {c!.name}
                 </span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
+
+      <DayPanel
+        isoDate={selectedIso}
+        celebration={selectedIso && calendar ? (calendar[selectedIso]?.[0] ?? null) : null}
+        onClose={() => setSelectedIso(null)}
+      />
     </div>
   );
 }

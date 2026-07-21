@@ -1,0 +1,98 @@
+.daypanel__scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(38, 36, 31, 0);
+  pointer-events: none;
+  transition: background 0.25s ease;
+  z-index: 40;
+}
+.daypanel__scrim.is-open {
+  background: rgba(38, 36, 31, 0.28);
+  pointer-events: auto;
+}
+
+.daypanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100svh;
+  width: min(420px, 92vw);
+  background: #fbfaf6;
+  border-left: 1px solid #e6e2d6;
+  box-shadow: -12px 0 32px -18px rgba(38, 36, 31, 0.4);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.daypanel.is-open { transform: translateX(0); }
+
+.daypanel__band { height: 5px; width: 100%; flex-shrink: 0; }
+
+.daypanel__head {
+  position: relative;
+  padding: 1.5rem 1.5rem 1.25rem;
+  border-bottom: 1px solid #ece8dc;
+}
+.daypanel__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: #6b675d;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+}
+.daypanel__close:hover { background: #f0ede3; color: #26241f; }
+.daypanel__close:focus-visible { outline: 2px solid #5b4a7e; outline-offset: 2px; }
+
+.daypanel__date {
+  margin: 0 0 0.35rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6b675d;
+}
+.daypanel__feast {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #26241f;
+  padding-right: 1.5rem;
+}
+.daypanel__feast--muted { color: #9a9587; font-weight: 500; }
+.daypanel__meta {
+  margin: 0.6rem 0 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.82rem;
+  color: #6b675d;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.daypanel__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.daypanel__body { flex: 1; overflow-y: auto; padding: 1.25rem 1.5rem 2rem; }
+.daypanel__placeholder {
+  color: #9a9587;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daypanel, .daypanel__scrim { transition: none; }
+}
