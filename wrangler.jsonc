@@ -39,7 +39,7 @@
   // manual switching. Secrets (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)
   // are set via `wrangler secret put`, NOT here.
   "vars": {
-    "APP_BASE_URL": "https://myordo-app.pinoywheatgrass.workers.dev",
+    "APP_BASE_URL": "https://myordo.cenaclelabs.com",
     "GOOGLE_REDIRECT_PATH": "/auth/google/callback"
   }
 }
