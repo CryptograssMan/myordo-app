@@ -139,3 +139,47 @@
   margin: 0 auto 1.5rem;
   border-radius: 12px;
 }
+
+/* In-app-browser notice on the sign-in screen */
+.signin__notice {
+  background: #fdf6e3;
+  border: 1px solid #e6dcae;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  text-align: left;
+  max-width: 460px;
+}
+.signin__notice-title {
+  margin: 0 0 0.35rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #6b4e00;
+}
+.signin__notice-body {
+  margin: 0 0 0.6rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #5a4a2a;
+}
+.signin__copy {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid #c9a227;
+  background: #fff;
+  color: #6b4e00;
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+.signin__copy:hover { background: #fbf3d6; }
+.signin__copied {
+  margin-left: 0.6rem;
+  font-size: 0.82rem;
+  color: #3f6b4c;
+  opacity: 0;
+  transition: opacity 0.2s;
+}

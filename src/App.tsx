@@ -1,5 +1,6 @@
 import { MonthGrid } from "./MonthGrid";
 import { useCurrentUser } from "./lib/useCurrentUser";
+import { detectInAppBrowser } from "./lib/inAppBrowser";
 import "./MonthGrid.css";
 import "./App.css";
 
@@ -23,6 +24,40 @@ function App() {
             src="/brand/myordo-og-banner.svg"
             alt="myORDO — The liturgical calendar, personalized for your parish."
           />
+          {(() => {
+            const inApp = detectInAppBrowser();
+            if (!inApp) return null;
+            const url = "https://myordo.cenaclelabs.com";
+            return (
+              <div className="signin__notice" role="alert">
+                <p className="signin__notice-title">
+                  Please open myORDO in your browser
+                </p>
+                <p className="signin__notice-body">
+                  You&rsquo;re viewing this inside {inApp}, where Google sign-in is
+                  blocked for security. Tap the menu icon and choose
+                  &ldquo;Open in Safari&rdquo; or &ldquo;Open in Chrome&rdquo; &mdash; or
+                  copy the link below and paste it into your browser.
+                </p>
+                <button
+                  type="button"
+                  className="signin__copy"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(url).then(
+                      () => {
+                        const el = document.getElementById("copied");
+                        if (el) el.style.opacity = "1";
+                      },
+                      () => {},
+                    );
+                  }}
+                >
+                  Copy link
+                </button>
+                <span id="copied" className="signin__copied">Copied!</span>
+              </div>
+            );
+          })()}
           <a className="signin__btn" href="/auth/google/login">
             Sign in with Google
           </a>
