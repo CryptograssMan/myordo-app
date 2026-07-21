@@ -385,3 +385,35 @@ users, so they can authenticate while the app is in Testing mode. Combined
 with the seeded invited memberships, each can log in and be scoped to the
 parish on first Google sign-in (invited -> active). No remaining auth
 blocker for the beta roster.
+
+## Mass readings feature SHIPPED — full liturgical year (2026-07-22)
+
+The daily Mass reading citations are now live in the day panel (above notes),
+deployed to production (commit 3748bcf).
+
+- **Dataset:** all 364 days of LY2026 (Nov 30 2025 – Nov 28 2026), in
+  src/lib/readings.ts. Source: CBCP-ECBA Catholic Daily Bible Reading Guide
+  2026 (Philippine Bible Society / CBCP-ECBA; Imprimatur Bp. Mayugba).
+- **Extraction:** the guide PDF's text is vectorized/unextractable, so data
+  came from 300-DPI column-aware OCR (tesseract) + a validation pipeline:
+  sequential day-number AND weekday-code dual validation (all 364 aligned,
+  0 missing), book-abbreviation check against the guide's own directory.
+  Raw OCR + intermediate artifacts were in /tmp/cdbrg (container, ephemeral).
+  Source MD: ph-mass-readings-ly2026.md (also saved to outputs).
+- **Display (Option A):** citation line as the guide prints it (slash-
+  separated 1st / Ps [/ 2nd] / Gospel) + psalm response (italic) + "Readings
+  per CBCP-ECBA" attribution. Handles multi-Mass days (Christmas), Easter
+  Vigil's 7 readings, alternatives, and the PH-proper Sto. Niño (Jan 18) as
+  a second labeled set. Keyed by ISO date; gated by READINGS_ENABLED.
+
+### Follow-ups (NOT yet done)
+1. **Human verification pass** against the printed guide before claiming
+   "authoritative" — OCR can pass structural checks but still flip a verse
+   digit. Known artifact to fix: Pentecost vigil "J13:1-5" should be "Jl 3:1-5".
+2. **Re-key by liturgical id + cycle** (romcal id + sundayCycle/weekdayCycle)
+   so readings resolve in future years, not just LY2026's calendar dates.
+3. **Optional:** split multi-Mass days (Christmas) into separate labeled
+   blocks instead of one packed citation line.
+4. **CBCP-ECBA outreach** (Mrs. Vicky Franco, bea@bible.org.ph, 09178590036)
+   — now a strong pitch with the full year implemented + attributed. For
+   permission/partnership/endorsement and ideally the source data file.
