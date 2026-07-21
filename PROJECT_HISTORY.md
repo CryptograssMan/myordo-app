@@ -363,3 +363,17 @@ saints correct via the corrections layer), and post parish-wide notes + keep
 private journals, all correctly permissioned. Not yet done: PWA offline shell
 (Phase E), full CBCP ordo diff (§13), compliance paperwork (deferred per beta
 scope), and general polish.
+
+## Known limitation — DuckDuckGo browser login (2026-07-21)
+
+Google sign-in fails with "invalid_state" in the DuckDuckGo browser
+(mobile). Confirmed WORKING on Chrome and Safari on both Android and
+iPhone, and all desktop browsers incl. incognito. Cause: DDG aggressively
+blocks cross-site cookies, so the oauth_state CSRF cookie doesn't survive
+the redirect back from Google. This is inherent to DDG's privacy blocking,
+not an app bug — affects many sites' Google logins.
+
+Decision: NOT fixing for beta. DDG has low share and working around it
+would mean weakening the standard oauth_state CSRF protection. Acceptable
+answer for a beta user on DDG: "use Chrome or Safari to sign in." Revisit
+only if real usage shows meaningful DDG traffic.
