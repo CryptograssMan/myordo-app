@@ -18,8 +18,11 @@ function App() {
     return (
       <div className="shell shell--center">
         <div className="signin">
-          <h1 className="signin__mark">myORDO</h1>
-          <p className="signin__sub">The parish liturgical calendar.</p>
+          <img
+            className="signin__banner"
+            src="/brand/myordo-og-banner.svg"
+            alt="myORDO — The liturgical calendar, personalized for your parish."
+          />
           <a className="signin__btn" href="/auth/google/login">
             Sign in with Google
           </a>
@@ -33,7 +36,7 @@ function App() {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="topbar__mark">myORDO</span>
+        <img className="topbar__logo" src="/brand/myordo-logo-horizontal.svg" alt="myORDO" />
         <div className="topbar__right">
           <span className="topbar__who">
             <span className="topbar__name">{emailPrefix}</span>

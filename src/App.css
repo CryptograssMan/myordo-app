@@ -112,3 +112,30 @@
 @media (max-width: 560px) {
   .topbar__parish { display: none; } /* keep it tidy on small screens */
 }
+
+/* Brand logos (replace text wordmarks) */
+.topbar__logo {
+  height: 1.6rem;
+  width: auto;
+  display: block;
+}
+.signin__logo {
+  width: 240px;
+  max-width: 70vw;
+  height: auto;
+  margin: 0 auto 0.5rem;
+  display: block;
+}
+
+/* Sign-in banner (replaces stacked logo + tagline; banner contains both) */
+.signin {
+  max-width: 30rem; /* widen the gate to give the banner room */
+}
+.signin__banner {
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+  display: block;
+  margin: 0 auto 1.5rem;
+  border-radius: 12px;
+}
