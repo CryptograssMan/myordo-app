@@ -313,3 +313,73 @@
 .btn--solid { background: #3f6b4c; color: #faf7ef; }
 .btn--solid:hover:not(:disabled) { background: #345b40; }
 .btn:focus-visible { outline: 2px solid #5b4a7e; outline-offset: 2px; }
+
+/* Readings section (above notes) */
+.readings {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #ece8dc;
+}
+.reading {
+  margin-bottom: 0.9rem;
+}
+.reading__label {
+  margin: 0 0 0.35rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #5b4a7e;
+}
+.reading__list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+.reading__list dt {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9587;
+  align-self: baseline;
+}
+.reading__list dd {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 0.95rem;
+  color: #26241f;
+}
+.reading__resp {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #6b675d;
+  line-height: 1.4;
+}
+.readings__src {
+  margin: 0.75rem 0 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.68rem;
+  color: #b0aa9c;
+  letter-spacing: 0.03em;
+}
+
+
+/* Readings — citation-line format (Option A) */
+.reading__cite {
+  margin: 0.15rem 0 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #26241f;
+}
+.reading__label {
+  margin: 0.5rem 0 0.1rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #5b4a7e;
+}

@@ -3,6 +3,7 @@ import { type LiturgicalDayView } from "./lib/liturgicalCalendar";
 import { colorToken } from "./lib/liturgicalColors";
 import { useDayNotes, type Note } from "./lib/useDayNotes";
 import { createNote, updateNote, deleteNote } from "./lib/noteActions";
+import { readingsForDate } from "./lib/readings";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -197,6 +198,30 @@ export function DayPanel({ isoDate, celebration, role, onClose }: DayPanelProps)
             </header>
 
             <div className="daypanel__body">
+              {(() => {
+                const dayReadings = readingsForDate(isoDate!);
+                if (!dayReadings) return null;
+                return (
+                  <section className="readings">
+                    <div className="notesec__head">
+                      <h3 className="notesec__title">Readings</h3>
+                    </div>
+                    {dayReadings.sets.map((set, i) => (
+                      <div className="reading" key={i}>
+                        {set.label && <p className="reading__label">{set.label}</p>}
+                        <p className="reading__cite">{set.citation}</p>
+                        {set.response && (
+                          <p className="reading__resp">
+                            &ldquo;{set.response}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                    <p className="readings__src">Readings per CBCP-ECBA</p>
+                  </section>
+                );
+              })()}
+
               {loading && <p className="daypanel__muted">Loading notes…</p>}
               {error && <p className="daypanel__error">{error}</p>}
 
