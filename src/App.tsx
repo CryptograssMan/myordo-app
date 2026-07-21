@@ -51,7 +51,7 @@ function App() {
           </form>
         </div>
       </header>
-      <MonthGrid />
+      <MonthGrid role={auth.user.role} />
     </div>
   );
 }

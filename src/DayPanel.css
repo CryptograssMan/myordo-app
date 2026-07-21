@@ -96,3 +96,74 @@
 @media (prefers-reduced-motion: reduce) {
   .daypanel, .daypanel__scrim { transition: none; }
 }
+
+/* Capitalize romcal's lowercase rankName ("feast" -> "Feast") */
+.daypanel__rank { text-transform: capitalize; }
+
+.daypanel__muted {
+  color: #9a9587;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.88rem;
+  margin: 0.25rem 0 0;
+}
+.daypanel__error {
+  color: #9e3630;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.88rem;
+}
+
+.notesec { margin-bottom: 1.75rem; }
+.notesec__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.notesec__title {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6b675d;
+}
+
+.note {
+  background: #f5f2e9;
+  border: 1px solid #eae5d7;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.6rem;
+}
+.note__title {
+  margin: 0 0 0.25rem;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #26241f;
+}
+.note__body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #3a372f;
+  white-space: pre-wrap;
+}
+.note__by {
+  margin: 0.5rem 0 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.72rem;
+  color: #9a9587;
+  text-align: right;
+}
+
+.daypanel__hint {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ece8dc;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.78rem;
+  color: #9a9587;
+  font-style: italic;
+}

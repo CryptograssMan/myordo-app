@@ -53,7 +53,7 @@ function dominantSeason(
   return { season: topSeason[0], colors: topColor ? [topColor[0]] : [] };
 }
 
-export function MonthGrid() {
+export function MonthGrid({ role }: { role: "admin" | "staff" }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -178,6 +178,7 @@ export function MonthGrid() {
       <DayPanel
         isoDate={selectedIso}
         celebration={selectedIso && calendar ? (calendar[selectedIso]?.[0] ?? null) : null}
+        role={role}
         onClose={() => setSelectedIso(null)}
       />
     </div>
