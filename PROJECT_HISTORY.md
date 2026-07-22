@@ -473,3 +473,24 @@ solemnities 7px (.cal__spine--solemnity), feasts 5px (.cal__spine--feast),
 others 4px — major days pop by weight, not just hue. Uses c.rank already at
 the cell. Verified Nov 2026: All Saints / Christ the King bold deep-gold;
 white memorials quiet ivory; reds distinct.
+
+## Month-view note reminder chips (2026-07-22)
+
+Beta feedback (user request): show parish note TITLES in the month grid to spot
+reminders at a glance; click day for detail. Reference: Google/Apple-style event
+pills. Shipped.
+
+Design (user's answers): untitled notes -> first words of body as chip text;
+single NEUTRAL chip color (NOT any liturgical color) so chips read as app data
+on top of the liturgical system; up to 3 chips then "+N more"; PARISH-PUBLIC
+notes only (private stay in the day panel); mobile-friendly; click-through
+unchanged; ~11-char truncation.
+
+Build: TenantDB.listPublicNotesForMonth(start,end) — parish-scoped, public-only,
+date-range. GET /api/notes/month?start=&end=. useMonthNotes(start,end) hook
+batches the whole visible month in ONE query -> Map<iso, Note[]>. MonthGrid
+renders .cal__chip spans (neutral #e4e1d8) after the feast name; chipLabel()
+does title-or-body + truncation. Verified on localhost with seeded notes.
+
+Note: production shows chips only once staff add parish notes (prod DB has none
+seeded). Possible future: add private-note chips as a second style if requested.
