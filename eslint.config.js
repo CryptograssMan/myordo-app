@@ -37,12 +37,17 @@ export default defineConfig([
     //                          parish (and thus a TenantDB) is known.
     //                          These touch `sessions` and `users` by
     //                          id/email, never tenant data by parish_id.
+    //  - super-admin-db.ts   : the deliberate cross-parish path for the
+    //                          super-admin console (architecture §3.4).
+    //                          Small, single-purpose, self-audited; never
+    //                          selects note title/body.
     files: ['worker/**/*.ts'],
     ignores: [
       'worker/tenant-db.ts',
       'worker/tenant-db.test.ts',
       'worker/google-auth.ts',
     'worker/auth-routes.ts',
+    'worker/super-admin-db.ts',
     ],
     rules: {
       'no-restricted-syntax': [

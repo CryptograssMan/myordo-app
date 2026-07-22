@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { AuthError, resolveRequestContext } from "./auth-context.js";
 import { authRoutes } from "./auth-routes.js";
 import { NotePermissionError } from "./tenant-db.js";
+import { superAdminRoutes } from "./super-admin-routes.js";
+import { isSuperAdminEmail } from "./super-admin.js";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -9,6 +11,9 @@ app.route("/auth", authRoutes);
 
 // All /api/* routes require a resolved tenant context.
 app.use("/api/*", async (c, next) => {
+  // Super-admin routes are NOT parish-scoped; they authorize themselves
+  // via requireSuperAdmin. Skip tenant-context resolution for them.
+  if (c.req.path.startsWith("/api/admin")) return next();
   try {
     const ctx = await resolveRequestContext(c.req.raw, c.env);
     c.set("ctx", ctx);
@@ -29,6 +34,7 @@ app.get("/api/me", (c) => {
     role: ctx.role,
     email: ctx.userEmail,
     parishName: ctx.parishName,
+    isSuperAdmin: isSuperAdminEmail(c.env, ctx.userEmail),
   });
 });
 
@@ -136,6 +142,10 @@ app.delete("/api/notes/:id", async (c) => {
     throw err;
   }
 });
+
+// Super-admin console API. Self-gated by requireSuperAdmin inside the
+// router; mounted before the /api/* 404 catch-all below.
+app.route("/api/admin", superAdminRoutes);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 

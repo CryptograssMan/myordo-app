@@ -11,6 +11,7 @@ export interface CurrentUser {
   role: "admin" | "staff";
   email: string;
   parishName: string;
+  isSuperAdmin: boolean;
 }
 
 export type AuthState =

@@ -1,11 +1,24 @@
+import { useEffect, useState } from "react";
 import { MonthGrid } from "./MonthGrid";
+import { SuperAdminConsole } from "./SuperAdminConsole";
 import { useCurrentUser } from "./lib/useCurrentUser";
 import { detectInAppBrowser } from "./lib/inAppBrowser";
 import "./MonthGrid.css";
 import "./App.css";
 
+function useHash() {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onChange);
+    return () => window.removeEventListener("hashchange", onChange);
+  }, []);
+  return hash;
+}
+
 function App() {
   const auth = useCurrentUser();
+  const hash = useHash();
 
   if (auth.status === "loading") {
     return (
@@ -68,10 +81,22 @@ function App() {
 
   // signed_in
   const emailPrefix = auth.user.email.split("@")[0] || "you";
+  const showAdmin = auth.user.isSuperAdmin && hash === "#admin";
   return (
     <div className="shell">
       <header className="topbar">
-        <img className="topbar__logo" src="/brand/myordo-logo-horizontal.svg" alt="myORDO" />
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <img className="topbar__logo" src="/brand/myordo-logo-horizontal.svg" alt="myORDO" />
+          {auth.user.isSuperAdmin && (
+            <a
+              className="topbar__logout"
+              href={showAdmin ? "#" : "#admin"}
+              style={{ textDecoration: "none", textTransform: "uppercase" }}
+            >
+              {showAdmin ? "Calendar" : "Console"}
+            </a>
+          )}
+        </div>
         <div className="topbar__right">
           <span className="topbar__who">
             <span className="topbar__name">{emailPrefix}</span>
@@ -89,7 +114,7 @@ function App() {
           </form>
         </div>
       </header>
-      <MonthGrid role={auth.user.role} />
+      {showAdmin ? <SuperAdminConsole /> : <MonthGrid role={auth.user.role} />}
     </div>
   );
 }
