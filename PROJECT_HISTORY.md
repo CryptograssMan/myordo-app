@@ -494,3 +494,27 @@ does title-or-body + truncation. Verified on localhost with seeded notes.
 
 Note: production shows chips only once staff add parish notes (prod DB has none
 seeded). Possible future: add private-note chips as a second style if requested.
+
+## Added staff member + next feature: super-admin console (2026-07-22)
+
+- Added ernie.cruz2013@gmail.com as STAFF to Don Bosco Sta Rosa (beta-parish),
+  local + remote, status invited; added as Google OAuth test user. Binds on
+  first login. (3rd time hand-running membership SQL — the invite UI is overdue.)
+- super-admin account = claravall.family@gmail.com (the owner/me).
+
+### NEXT FEATURE (planned, not started): super-admin console
+An in-app admin tool for the owner (claravall.family@gmail.com) to:
+- View ALL parishes, all users, and their roles (cross-tenant read).
+- Create new parishes; create/invite users; assign/change roles.
+Replaces the manual `parish_memberships` SQL + Cloud Console juggling.
+
+Design notes for whoever builds it:
+- This is a CROSS-TENANT / privileged surface — it must NOT go through TenantDB
+  (which is strictly single-parish by design, §3.4). Needs a separate, explicitly
+  privileged, super-admin-only data path (a "platform admin" role/allowlist,
+  gated hard — only claravall.family@gmail.com for now).
+- Keep it walled off from the tenant path so it never weakens parish isolation.
+- Still requires Google OAuth test-user add per new user while app is in Testing
+  mode (unless/until the app is verified/published) — the console can't bypass
+  that Google gate; note this in the UI.
+- Consider it the natural home for the §8 "admin-facing invite UI" too.
