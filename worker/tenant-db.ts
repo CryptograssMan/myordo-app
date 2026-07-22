@@ -84,6 +84,37 @@ export class TenantDB {
     return results;
   }
 
+  /**
+   * Parish-public notes across an inclusive date range, for the month view.
+   * Public-only by design — private notes appear only in the day panel.
+   */
+  async listPublicNotesForMonth(
+    startDate: string,
+    endDate: string,
+  ): Promise<NoteRow[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT n.*,
+                substr(
+                  COALESCE(editor.email, author.email),
+                  1,
+                  instr(COALESCE(editor.email, author.email), '@') - 1
+                ) AS attribution
+         FROM liturgical_notes n
+         JOIN users author ON author.id = n.author_user_id
+         LEFT JOIN users editor ON editor.id = n.last_edited_by_user_id
+         WHERE n.parish_id = ?1
+           AND n.liturgical_date >= ?2
+           AND n.liturgical_date <= ?3
+           AND n.deleted_at IS NULL
+           AND n.visibility = 'parish_public'
+         ORDER BY n.liturgical_date ASC, n.updated_at DESC`,
+      )
+      .bind(this.parishId, startDate, endDate)
+      .all<NoteRow>();
+    return results;
+  }
+
   /** Fetch a single note by id, parish-scoped. Null if not in this parish. */
   private async getNote(noteId: string): Promise<NoteRow | null> {
     const row = await this.db

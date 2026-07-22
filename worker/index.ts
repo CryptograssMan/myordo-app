@@ -32,6 +32,17 @@ app.get("/api/me", (c) => {
   });
 });
 
+app.get("/api/notes/month", async (c) => {
+  const ctx = c.get("ctx");
+  const start = c.req.query("start");
+  const end = c.req.query("end");
+  if (!start || !end) {
+    return c.json({ error: "Missing ?start=YYYY-MM-DD&end=YYYY-MM-DD" }, 400);
+  }
+  const notes = await ctx.tenantDb.listPublicNotesForMonth(start, end);
+  return c.json(notes);
+});
+
 app.get("/api/notes", async (c) => {
   const ctx = c.get("ctx");
   const date = c.req.query("date");

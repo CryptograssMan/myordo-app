@@ -5,6 +5,7 @@ import {
   type LiturgicalDayView,
 } from "./lib/liturgicalCalendar";
 import { colorToken } from "./lib/liturgicalColors";
+import { useMonthNotes } from "./lib/useMonthNotes";
 import { DayPanel } from "./DayPanel";
 import "./DayPanel.css";
 
@@ -17,6 +18,14 @@ const MONTH_NAMES = [
 function isoDate(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
+
+// Chip label: the note title, or the first words of the body if untitled.
+// Truncated tight for the dense month grid.
+function chipLabel(note: { title: string | null; body: string | null }): string {
+  const raw = (note.title && note.title.trim()) || (note.body && note.body.trim()) || "Note";
+  return raw.length > 11 ? raw.slice(0, 11).trimEnd() + "\u2026" : raw;
+}
+
 
 const NAMED_RANKS = new Set(["SOLEMNITY", "FEAST", "MEMORIAL"]);
 
@@ -93,6 +102,16 @@ export function MonthGrid({ role }: { role: "admin" | "staff" }) {
     () => dominantSeason(calendar, year, month),
     [calendar, year, month],
   );
+
+  // Parish-public notes for the whole visible month, for reminder chips.
+  const monthRange = useMemo(() => {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return {
+      start: isoDate(year, month, 1),
+      end: isoDate(year, month, daysInMonth),
+    };
+  }, [year, month]);
+  const { byDate: monthNotes } = useMonthNotes(monthRange.start, monthRange.end);
 
   const todayIso = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
 
@@ -176,6 +195,24 @@ export function MonthGrid({ role }: { role: "admin" | "staff" }) {
                   {c!.name}
                 </span>
               )}
+              {(() => {
+                const notes = monthNotes.get(cell.iso);
+                if (!notes || notes.length === 0) return null;
+                const shown = notes.slice(0, 3);
+                const extra = notes.length - shown.length;
+                return (
+                  <span className="cal__chips">
+                    {shown.map((n) => (
+                      <span className="cal__chip" key={n.id} title={n.title ?? n.body ?? ""}>
+                        {chipLabel(n)}
+                      </span>
+                    ))}
+                    {extra > 0 && (
+                      <span className="cal__chip cal__chip--more">+{extra} more</span>
+                    )}
+                  </span>
+                );
+              })()}
             </button>
           );
         })}
