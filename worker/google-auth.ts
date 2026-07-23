@@ -130,3 +130,35 @@ export async function userIdForSession(
     .first<{ user_id: string }>();
   return row?.user_id ?? null;
 }
+
+/**
+ * Sliding renewal (offline-pwa spec §1.1): extend a valid session to a
+ * fresh 30-day window. Called from the sync/me path so any device that
+ * checks in keeps its offline window alive; a device that stays offline
+ * for the full TTL degrades per spec §1.3 (local write allowed, server
+ * rejects until re-auth).
+ */
+export async function touchSession(env: Env, sessionId: string): Promise<void> {
+  const expiresAt = new Date(
+    Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  await env.DB.prepare(
+    `UPDATE sessions SET expires_at = ?1
+     WHERE id = ?2 AND expires_at > datetime('now')`,
+  )
+    .bind(expiresAt, sessionId)
+    .run();
+}
+
+/** Expiry timestamp for a session (ISO), for the client identity snapshot. */
+export async function sessionExpiresAt(
+  env: Env,
+  sessionId: string,
+): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT expires_at FROM sessions WHERE id = ?`,
+  )
+    .bind(sessionId)
+    .first<{ expires_at: string }>();
+  return row?.expires_at ?? null;
+}

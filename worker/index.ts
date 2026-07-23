@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { AuthError, resolveRequestContext } from "./auth-context.js";
 import { authRoutes } from "./auth-routes.js";
-import { NotePermissionError } from "./tenant-db.js";
+import { NotePermissionError, TenantDB } from "./tenant-db.js";
 import { superAdminRoutes } from "./super-admin-routes.js";
 import { isSuperAdminEmail } from "./super-admin.js";
+import { syncRoutes } from "./sync-routes.js";
+import { sessionExpiresAt, touchSession } from "./google-auth.js";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -26,8 +28,17 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-app.get("/api/me", (c) => {
+// Identity snapshot (offline-pwa spec §1.1). Keeps the original flat
+// fields for existing callers, and adds `memberships` +
+// `sessionExpiresAt` for the offline cache. Also performs the sliding
+// 30-day session renewal: any online check-in refreshes the offline window.
+app.get("/api/me", async (c) => {
   const ctx = c.get("ctx");
+  await touchSession(c.env, ctx.sessionId);
+  const [snapshot, expiresAt] = await Promise.all([
+    TenantDB.identitySnapshotForUser(c.env.DB, ctx.userId),
+    sessionExpiresAt(c.env, ctx.sessionId),
+  ]);
   return c.json({
     userId: ctx.userId,
     parishId: ctx.parishId,
@@ -35,6 +46,17 @@ app.get("/api/me", (c) => {
     email: ctx.userEmail,
     parishName: ctx.parishName,
     isSuperAdmin: isSuperAdminEmail(c.env, ctx.userEmail),
+    displayName: snapshot.user?.display_name ?? null,
+    preferredLanguage: snapshot.user?.preferred_language ?? null,
+    memberships: snapshot.memberships.map((m) => ({
+      parishId: m.parish_id,
+      parishName: m.parish_name,
+      role: m.role,
+      defaultLanguage: m.default_language,
+      subscriptionStatus: m.subscription_status,
+    })),
+    sessionExpiresAt: expiresAt,
+    snapshotFetchedAt: new Date().toISOString(),
   });
 });
 
@@ -142,6 +164,10 @@ app.delete("/api/notes/:id", async (c) => {
     throw err;
   }
 });
+
+// Offline sync (offline-pwa spec §3.3). Tenant-scoped via the standard
+// middleware; mounted before the /api/* 404 catch-all below.
+app.route("/api/sync", syncRoutes);
 
 // Super-admin console API. Self-gated by requireSuperAdmin inside the
 // router; mounted before the /api/* 404 catch-all below.

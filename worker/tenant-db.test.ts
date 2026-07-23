@@ -13,6 +13,9 @@ import { TenantDB, NotePermissionError, type NoteRow } from "./tenant-db.js";
 
 async function applySchema() {
   for (const table of [
+    "sync_mutations",
+    "note_changes",
+    "note_revisions",
     "liturgical_notes",
     "parish_memberships",
     "users",
@@ -52,6 +55,28 @@ async function applySchema() {
       visibility TEXT NOT NULL, liturgical_date TEXT NOT NULL,
       title TEXT, body TEXT, version INTEGER NOT NULL DEFAULT 1,
       updated_at TEXT NOT NULL DEFAULT (datetime('now')), deleted_at TEXT
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE note_revisions (
+      id TEXT PRIMARY KEY, note_id TEXT NOT NULL, parish_id TEXT NOT NULL,
+      author_user_id TEXT NOT NULL, body TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE note_changes (
+      seq INTEGER PRIMARY KEY AUTOINCREMENT,
+      parish_id TEXT NOT NULL, note_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE sync_mutations (
+      mutation_id TEXT PRIMARY KEY, parish_id TEXT NOT NULL,
+      user_id TEXT NOT NULL, note_id TEXT NOT NULL,
+      result TEXT NOT NULL, new_version INTEGER, reason TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `).run();
 }
@@ -226,5 +251,223 @@ describe("TenantDB — notes permission matrix", () => {
       `SELECT deleted_at FROM liturgical_notes WHERE id = 'pub4'`,
     ).first<{ deleted_at: string | null }>();
     expect(row?.deleted_at).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------
+// Offline sync protocol (offline-pwa spec §3): idempotent replay,
+// private latest-wins with revision preservation, parish-public
+// conflict surfacing, tombstone replication, cross-parish rejection,
+// and the seq-cursor pull.
+// ---------------------------------------------------------------------
+
+describe("TenantDB — offline sync", () => {
+  beforeEach(async () => {
+    await applySchema();
+    await seed();
+  });
+
+  function db(parish = "parish-1") {
+    return new TenantDB(env.DB, parish);
+  }
+
+  it("create via mutation applies once and replays idempotently", async () => {
+    const p1 = db();
+    const mutation = {
+      mutationId: "mut-1",
+      type: "create" as const,
+      noteId: "note-1",
+      baseVersion: 0,
+      payload: {
+        visibility: "private" as const,
+        liturgicalDate: DATE,
+        title: "Homily",
+        body: "draft one",
+      },
+    };
+    const first = await p1.applyMutation({ mutation, userId: "staff-1", role: "staff" });
+    expect(first.status).toBe("applied");
+    if (first.status === "applied") expect(first.newVersion).toBe(1);
+
+    // Replay (client retried after a dropped response) — no double write.
+    const replay = await p1.applyMutation({ mutation, userId: "staff-1", role: "staff" });
+    expect(replay.status).toBe("applied");
+    const notes = await p1.listNotesForDate(DATE, "staff-1");
+    expect(notes).toHaveLength(1);
+    expect(notes[0].version).toBe(1);
+  });
+
+  it("stale write to a PRIVATE note wins, preserving the superseded body", async () => {
+    const p1 = db();
+    await p1.applyMutation({
+      mutation: {
+        mutationId: "m-create",
+        type: "create",
+        noteId: "n-priv",
+        baseVersion: 0,
+        payload: { visibility: "private", liturgicalDate: DATE, title: null, body: "phone edit" },
+      },
+      userId: "staff-1",
+      role: "staff",
+    });
+    // Same author edits from a second device without the phone's push.
+    await p1.applyMutation({
+      mutation: {
+        mutationId: "m-laptop",
+        type: "update",
+        noteId: "n-priv",
+        baseVersion: 1,
+        payload: { title: null, body: "laptop edit" },
+      },
+      userId: "staff-1",
+      role: "staff",
+    });
+    // Phone pushes a STALE edit (baseVersion 1, server is at 2).
+    const stale = await p1.applyMutation({
+      mutation: {
+        mutationId: "m-phone",
+        type: "update",
+        noteId: "n-priv",
+        baseVersion: 1,
+        payload: { title: null, body: "phone edit v2" },
+      },
+      userId: "staff-1",
+      role: "staff",
+    });
+    expect(stale.status).toBe("applied"); // latest-received wins for private
+    const notes = await p1.listNotesForDate(DATE, "staff-1");
+    expect(notes[0].body).toBe("phone edit v2");
+    expect(notes[0].version).toBe(3);
+    // The overwritten laptop body is recoverable in note_revisions.
+    const revs = await env.DB.prepare(
+      `SELECT body FROM note_revisions WHERE note_id = 'n-priv' ORDER BY rowid`,
+    ).all<{ body: string | null }>();
+    expect(revs.results.map((r) => r.body)).toContain("laptop edit");
+  });
+
+  it("stale write to a PARISH-PUBLIC note conflicts, both bodies preserved", async () => {
+    const p1 = db();
+    await p1.applyMutation({
+      mutation: {
+        mutationId: "m-c",
+        type: "create",
+        noteId: "n-pub",
+        baseVersion: 0,
+        payload: { visibility: "parish_public", liturgicalDate: DATE, title: "Sked", body: "v1" },
+      },
+      userId: "admin-1",
+      role: "admin",
+    });
+    await p1.applyMutation({
+      mutation: { mutationId: "m-a2", type: "update", noteId: "n-pub", baseVersion: 1,
+        payload: { title: "Sked", body: "admin-2 edit" } },
+      userId: "admin-2",
+      role: "admin",
+    });
+    const conflict = await p1.applyMutation({
+      mutation: { mutationId: "m-a1-stale", type: "update", noteId: "n-pub", baseVersion: 1,
+        payload: { title: "Sked", body: "admin-1 offline edit" } },
+      userId: "admin-1",
+      role: "admin",
+    });
+    expect(conflict.status).toBe("conflict");
+    if (conflict.status === "conflict") {
+      expect(conflict.serverBody).toBe("admin-2 edit"); // NOT overwritten
+      expect(conflict.serverVersion).toBe(2);
+    }
+    // The rejected incoming body is preserved as a revision.
+    const revs = await env.DB.prepare(
+      `SELECT body FROM note_revisions WHERE note_id = 'n-pub'`,
+    ).all<{ body: string | null }>();
+    expect(revs.results.map((r) => r.body)).toContain("admin-1 offline edit");
+  });
+
+  it("staff mutation on a parish-public note is rejected", async () => {
+    const p1 = db();
+    const r = await p1.applyMutation({
+      mutation: {
+        mutationId: "m-staff-pub",
+        type: "create",
+        noteId: "n-x",
+        baseVersion: 0,
+        payload: { visibility: "parish_public", liturgicalDate: DATE, title: null, body: "nope" },
+      },
+      userId: "staff-1",
+      role: "staff",
+    });
+    expect(r.status).toBe("rejected");
+    if (r.status === "rejected") expect(r.reason).toBe("public_notes_admin_only");
+  });
+
+  it("pull pages by seq cursor, includes tombstones, hides others' private notes", async () => {
+    const p1 = db();
+    await p1.createNote({
+      id: "pub-1", userId: "admin-1", role: "admin",
+      visibility: "parish_public", liturgicalDate: DATE, title: "Public", body: "b",
+    });
+    await p1.createNote({
+      id: "priv-staff", userId: "staff-1", role: "staff",
+      visibility: "private", liturgicalDate: DATE, title: "Staff private", body: "s",
+    });
+    await p1.deleteNote({ noteId: "pub-1", userId: "admin-1", role: "admin" });
+
+    // admin-1 pulls: sees the public tombstone, NOT staff-1's private note.
+    const adminPage = await p1.pullChanges({ sinceSeq: 0, limit: 200, userId: "admin-1" });
+    const adminIds = adminPage.changes.map((c) => c.id);
+    expect(adminIds).toContain("pub-1");
+    expect(adminIds).not.toContain("priv-staff");
+    const tomb = adminPage.changes.find((c) => c.id === "pub-1");
+    expect(tomb?.deleted_at).not.toBeNull();
+
+    // staff-1 pulls: sees their own private note.
+    const staffPage = await p1.pullChanges({ sinceSeq: 0, limit: 200, userId: "staff-1" });
+    expect(staffPage.changes.map((c) => c.id)).toContain("priv-staff");
+
+    // Incremental: pulling again from the cursor returns nothing new.
+    const again = await p1.pullChanges({
+      sinceSeq: staffPage.nextSince, limit: 200, userId: "staff-1",
+    });
+    expect(again.changes).toHaveLength(0);
+    expect(again.hasMore).toBe(false);
+  });
+
+  it("cross-parish: a mutation against another parish's note is invisible", async () => {
+    const p1 = db();
+    const p2 = db("parish-2");
+    await p1.createNote({
+      id: "p1-note", userId: "admin-1", role: "admin",
+      visibility: "parish_public", liturgicalDate: DATE, title: "P1", body: "secret",
+    });
+    // parish-2's TenantDB cannot see, edit, or pull it.
+    const r = await p2.applyMutation({
+      mutation: { mutationId: "m-cross", type: "update", noteId: "p1-note", baseVersion: 1,
+        payload: { title: "stolen", body: "stolen" } },
+      userId: "p2-admin",
+      role: "admin",
+    });
+    expect(r.status).toBe("rejected");
+    if (r.status === "rejected") expect(r.reason).toBe("not_found");
+    const p2Pull = await p2.pullChanges({ sinceSeq: 0, limit: 200, userId: "p2-admin" });
+    expect(p2Pull.changes.map((c) => c.id)).not.toContain("p1-note");
+  });
+
+  it("deleting an edited public note (stale) surfaces a conflict instead", async () => {
+    const p1 = db();
+    await p1.createNote({
+      id: "n-del", userId: "admin-1", role: "admin",
+      visibility: "parish_public", liturgicalDate: DATE, title: "T", body: "v1",
+    });
+    await p1.updateNote({
+      noteId: "n-del", userId: "admin-2", role: "admin", title: "T", body: "v2",
+    });
+    const r = await p1.applyMutation({
+      mutation: { mutationId: "m-del-stale", type: "delete", noteId: "n-del",
+        baseVersion: 1, payload: null },
+      userId: "admin-1",
+      role: "admin",
+    });
+    expect(r.status).toBe("conflict"); // admin-2's edit is not destroyed
+    const notes = await p1.listNotesForDate(DATE, "admin-1");
+    expect(notes.find((n) => n.id === "n-del")?.body).toBe("v2");
   });
 });

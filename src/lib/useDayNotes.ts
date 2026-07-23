@@ -1,10 +1,12 @@
 // src/lib/useDayNotes.ts
 //
-// Fetches notes for a selected day from GET /api/notes?date=. Returns the
-// list plus refetch() so write actions (stage 3) can refresh after
-// create/edit/delete. Only fetches when a date is provided.
+// Day-panel notes, read from IndexedDB (offline-pwa spec §2: the UI
+// always renders from the local store; the network is the sync engine's
+// job). Re-reads whenever the sync engine reports data changed.
 
 import { useCallback, useEffect, useState } from "react";
+import { notesForDate, getSnapshot } from "./localdb";
+import { subscribeSync } from "./syncEngine";
 
 export interface Note {
   id: string;
@@ -16,6 +18,7 @@ export interface Note {
   updated_at: string;
   author_user_id: string;
   attribution: string | null; // email prefix of last editor/author (public only)
+  dirty?: boolean; // pending un-synced local edit
 }
 
 export interface DayNotes {
@@ -29,34 +32,37 @@ export interface DayNotes {
 export function useDayNotes(isoDate: string | null): DayNotes {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
 
   const refetch = useCallback(() => setNonce((n) => n + 1), []);
+
+  // Re-read after every sync-engine event (pull applied, push resolved…)
+  useEffect(() => subscribeSync(refetch), [refetch]);
 
   useEffect(() => {
     if (!isoDate) return;
     let alive = true;
 
-    // All state updates happen inside this async function rather than
-    // synchronously in the effect body (react-hooks/set-state-in-effect).
     async function load(date: string) {
       setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/notes?date=${encodeURIComponent(date)}`);
-        if (!alive) return;
-        if (!res.ok) {
-          setError(`Could not load notes (${res.status})`);
-          setNotes([]);
-        } else {
-          setNotes((await res.json()) as Note[]);
-        }
-      } catch {
-        if (alive) setError("Could not load notes");
-      } finally {
-        if (alive) setLoading(false);
+      const snapshot = await getSnapshot();
+      if (!alive) return;
+      if (!snapshot) {
+        setNotes([]);
+        setLoading(false);
+        return;
       }
+      const rows = await notesForDate(snapshot.activeParishId, date);
+      if (!alive) return;
+      // Private notes: author-only, mirroring the server's visibility rule.
+      setNotes(
+        rows.filter(
+          (n) =>
+            n.visibility === "parish_public" ||
+            n.author_user_id === snapshot.userId,
+        ),
+      );
+      setLoading(false);
     }
 
     void load(isoDate);
@@ -68,7 +74,7 @@ export function useDayNotes(isoDate: string | null): DayNotes {
   const active = isoDate !== null;
   return {
     loading: active ? loading : false,
-    error: active ? error : null,
+    error: null,
     publicNotes: active ? notes.filter((n) => n.visibility === "parish_public") : [],
     privateNotes: active ? notes.filter((n) => n.visibility === "private") : [],
     refetch,

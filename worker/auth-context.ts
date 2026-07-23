@@ -29,6 +29,9 @@ export interface RequestContext {
   userEmail: string;
   parishName: string;
   tenantDb: TenantDB;
+  /** Opaque session id from the cookie — used by /api/me for the
+   *  identity snapshot's expiry field and sliding renewal. */
+  sessionId: string;
 }
 
 function readSessionCookie(request: Request): string | null {
@@ -78,5 +81,6 @@ export async function resolveRequestContext(
     userEmail: info?.email ?? "",
     parishName: info?.parishName ?? "",
     tenantDb,
+    sessionId,
   };
 }

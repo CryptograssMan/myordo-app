@@ -1,0 +1,76 @@
+/* Install banner — quiet, in the warm-paper register, sits above the
+   topbar. Uses the brand purple as the single accent. */
+
+.installbanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  background: #ece6d6;
+  border-bottom: 1px solid #d9d2bd;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.85rem;
+  color: #3e3a31;
+}
+.installbanner__text {
+  max-width: 40rem;
+}
+.installbanner__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.installbanner__install {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.3rem 0.85rem;
+  border: none;
+  border-radius: 999px;
+  background: #615380;
+  color: #f3efe4;
+  cursor: pointer;
+}
+.installbanner__install:hover {
+  background: #4e4268;
+}
+.installbanner__dismiss {
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0.15rem 0.45rem;
+  border: none;
+  background: none;
+  color: #8a8474;
+  cursor: pointer;
+}
+.installbanner__dismiss:hover {
+  color: #3e3a31;
+}
+
+/* Status strip (offline / expired / pending sync) shares the register. */
+.syncstrip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 0.8rem;
+  border-bottom: 1px solid #d9d2bd;
+}
+.syncstrip--offline {
+  background: #e8e2d2;
+  color: #5a5647;
+}
+.syncstrip--warning {
+  background: #f0e3cd;
+  color: #6b5122;
+}
+.syncstrip__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}

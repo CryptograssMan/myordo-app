@@ -3,6 +3,8 @@ import { MonthGrid } from "./MonthGrid";
 import { SuperAdminConsole } from "./SuperAdminConsole";
 import { useCurrentUser } from "./lib/useCurrentUser";
 import { detectInAppBrowser } from "./lib/inAppBrowser";
+import { InstallBanner } from "./components/InstallBanner";
+import { SyncStatusStrip } from "./components/SyncStatusStrip";
 import "./MonthGrid.css";
 import "./App.css";
 
@@ -24,6 +26,26 @@ function App() {
     return (
       <div className="shell shell--center">
         <p className="shell__muted">Loading…</p>
+      </div>
+    );
+  }
+
+  if (auth.status === "offline_blocked") {
+    // Offline + never signed in on this device (spec §1.2 step 3).
+    return (
+      <div className="shell shell--center">
+        <div className="signin">
+          <img
+            className="signin__banner"
+            src="/brand/myordo-og-banner.svg"
+            alt="myORDO"
+          />
+          <p className="signin__sub">
+            You need to sign in once while connected to the internet before
+            using myORDO offline. / Kailangan mong mag-sign in nang isang beses
+            habang naka-connect sa internet bago magamit ang myORDO offline.
+          </p>
+        </div>
       </div>
     );
   }
@@ -84,6 +106,8 @@ function App() {
   const showAdmin = auth.user.isSuperAdmin && hash === "#admin";
   return (
     <div className="shell">
+      <InstallBanner />
+      <SyncStatusStrip sessionExpired={auth.sessionExpired} />
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <img className="topbar__logo" src="/brand/myordo-logo-horizontal.svg" alt="myORDO" />
