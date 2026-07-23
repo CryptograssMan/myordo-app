@@ -518,3 +518,149 @@ Design notes for whoever builds it:
   mode (unless/until the app is verified/published) — the console can't bypass
   that Google gate; note this in the UI.
 - Consider it the natural home for the §8 "admin-facing invite UI" too.
+
+## Offline mode + PWA SHIPPED (2026-07-23)
+
+Beta feedback: parishes in areas with no data connectivity. Shipped offline
+read/write with background sync, plus full PWA installability. Spec written
+first (`myORDO_offline-pwa_spec_v1.md`) then executed against it.
+
+### The constraint that shaped everything
+
+**Google OAuth cannot happen offline.** There is no such thing as a fresh
+login without network. So "offline login" means *session continuation*: a
+user who has signed in online at least once on this device re-enters the
+app and their parish context with zero connectivity, from a cached identity
+snapshot in IndexedDB. A device that has NEVER signed in gets a blocked
+screen — by definition it holds no parish data. This must be in beta comms:
+*open the app and sign in once while connected before travelling somewhere
+without signal.*
+
+Session is 30-day sliding (re-issued on any authenticated request via
+`touchSession`). If it expires while offline the app still allows READ AND
+WRITE locally, with a warning banner — a priest at a remote chapel on day 31
+must still be able to write Sunday's homily. The server rejects the sync
+until re-auth; the draft is safe locally. Degrade, don't lock out.
+
+### Server (migrations 0005, 0006)
+
+- `sync_mutations` — idempotency ledger keyed on client-generated
+  `mutation_id`. A replayed push returns the recorded outcome instead of
+  writing twice, so client retries are always safe.
+- `note_changes` — monotonic per-parish change feed. **`seq` is the pull
+  cursor, never `updated_at`** — this kills clock-skew and same-second-tie
+  bugs outright. Every write to `liturgical_notes` appends one feed row in
+  the SAME `db.batch()` (D1 has no interactive transactions; batch is the
+  atomicity primitive).
+- `TenantDB.applyMutation()` — conflict policy per architecture §6:
+  version == baseVersion -> apply. version > baseVersion -> PRIVATE notes
+  latest-received-wins with the superseded body preserved in
+  `note_revisions`; PARISH-PUBLIC notes are NOT applied, the incoming body
+  is preserved as a revision and both versions returned for user review.
+  Deleting a note someone else edited also surfaces a conflict rather than
+  destroying their work. Nothing is ever silently lost.
+- `TenantDB.pullChanges()` — seq-paged, tombstones included, private notes
+  filtered to their author. Same visibility rules as `listNotesForDate`.
+- Routes: `POST /api/sync/push`, `GET /api/sync/pull`. `/api/me` extended to
+  the full IdentitySnapshot (memberships + session expiry), backward
+  compatible with the old flat fields. All still behind the standard tenant
+  middleware — no raw `.prepare()` outside the choke points, lint holds.
+
+### Client
+
+- `src/lib/localdb.ts` (idb) — stores: `notes`, `outbox`, `conflicts`,
+  `meta`. **Every record carries `parishId`**, mirroring the server's
+  row-scoping discipline, so revocation wipe is one index range delete.
+- **The UI now renders exclusively from IndexedDB.** The network is touched
+  only by the sync engine. Online and offline are the same code path — the
+  single highest-leverage simplification in the whole design.
+- `src/lib/syncEngine.ts` — the client counterpart of TenantDB's choke
+  point: the ONLY module that talks to `/api/sync/*`. Push-before-pull
+  always (pulling first would clobber local base state under pending
+  mutations and manufacture false conflicts). `navigator.locks` mutex so
+  two tabs never double-push. Exponential backoff 1min -> 30min cap.
+- `noteActions.ts` is now local-first: optimistic IndexedDB write + outbox
+  mutation, with coalescing (rapid edits fold into the not-yet-attempted
+  mutation instead of queueing dozens).
+- Revocation (§1.5): on reconnect, any parish missing from the fresh
+  snapshot has its local partition wiped INCLUDING un-synced drafts. The
+  deliberate exception to "never lose data" — a revoked staffer's drafts
+  must not linger on a device the parish no longer trusts. Note for admins:
+  revocation only takes effect when the device next comes online.
+
+### PWA
+
+- `vite-plugin-pwa`, `registerType: 'prompt'` — never auto-reload out from
+  under a mid-edit homily draft. Update toast flushes the outbox first.
+- **`/api/*` and `/auth/*` are in `navigateFallbackDenylist` and are never
+  runtime-cached.** All data flows through IndexedDB; an SW cache of API
+  responses would be a second stale source of truth — the classic
+  offline-app bug.
+- Icons generated from `public/brand/myordo-icon-light.svg` via
+  `npm run icons` (sharp). Maskable variant keeps the mark inside the 80%
+  safe zone with cream bleeding to the edges or Android's circular mask
+  crops it; apple-touch-icon is flattened because iOS renders alpha black.
+- Install banner: real Install button on Chromium via stashed
+  `beforeinstallprompt`; instructional variant on iOS (Share -> Add to Home
+  Screen) since iOS has no install API. EN + TL. 14-day snooze, gone after
+  3 dismissals. Suppressed in in-app browsers (they can't install).
+
+### Two bugs that reached production — both in the same blind spot
+
+The sync protocol had 7 end-to-end tests and worked first time. What broke
+was everything the sandbox could not exercise:
+
+1. **Install banner did nothing on Android.** The banner only became visible
+   inside an 800ms timer that required `beforeinstallprompt` to have already
+   fired; if it fired later (slow network) `setVisible(true)` never ran. And
+   `prompt()` was called bare inside `void install()`, so a stale event's
+   `InvalidStateError` was swallowed as an unhandled rejection — looked
+   exactly like a dead button. Fixed: single path, prompt availability
+   tracked separately, failures degrade to manual instructions.
+2. **All pre-existing notes vanished from the UI.** `note_changes` shipped
+   empty and `pullChanges` joined FROM it, so every note written before the
+   migration had no feed row and could never be pulled — and since the
+   client now renders only from IndexedDB, unpullable means invisible. The
+   E2E test created its note THROUGH the sync path, which appends to the
+   feed as a side effect, so it never touched the case that mattered. Fixed
+   two ways: migration 0006 backfills the feed, AND `pullChanges` bootstrap
+   (`since=0`) now reads `liturgical_notes` directly. **The change feed is
+   an INCREMENTAL index; treating it as the source of truth makes any note
+   lacking a feed row invisible forever. A first sync must reflect the
+   table, not the journal.** Bootstrap returns live notes only; incremental
+   still carries tombstones.
+
+**Lesson worth keeping:** both failures were browser APIs that can't be
+invoked headlessly, and a migration against data that already existed.
+Anything in those two categories needs real-hardware testing and a
+production-data copy before shipping, no matter how green the suite is.
+
+### Verified
+
+24 tests pass. Deployed and confirmed on device: install works on both
+Android (Chrome) and iOS (Add to Home Screen), app launches offline into
+the parish context, notes readable and writable with no signal, changes
+sync on reconnect.
+
+### Follow-ups (NOT done)
+
+- **Two-device conflict has never been run on real hardware.** Covered by
+  tests, but the path that protects a homily draft from silent overwrite
+  deserves a live check: two admins edit the same parish-public note while
+  both offline, reconnect one at a time, confirm the second sees the
+  conflict badge with both versions recoverable.
+- Conflict-resolution UI is minimal — entries land in the `conflicts` store
+  and are surfaced, but a polished side-by-side review screen is not built.
+- Multi-parish switching offline is specced but untested (no multi-parish
+  user exists yet in prod).
+- 5 npm high-severity advisories are pre-existing: libvips CVEs in
+  `sharp <0.35.0` nested under miniflare/wrangler. All devDependencies,
+  nothing ships to Cloudflare. `npm audit fix --force` would downgrade
+  `@cloudflare/vitest-pool-workers` (breaking) — leave until Cloudflare
+  bumps it.
+- Note: `curl https://myordo.cenaclelabs.com/.dev.vars` returns **200**, but
+  that is the SPA fallback serving index.html, NOT the file. `.dev.vars` is
+  listed in `dist/client/.assetsignore` and never uploaded (deploy reads 23
+  files from `dist/client`; `.dev.vars` lands in `dist/myordo_app/`).
+  Checked because an exposed `GOOGLE_CLIENT_SECRET` would be serious — on
+  this site a 200 proves nothing, always diff the CONTENT.
