@@ -399,7 +399,7 @@ describe("TenantDB — offline sync", () => {
     if (r.status === "rejected") expect(r.reason).toBe("public_notes_admin_only");
   });
 
-  it("pull pages by seq cursor, includes tombstones, hides others' private notes", async () => {
+  it("bootstrap returns live notes only; incremental carries tombstones", async () => {
     const p1 = db();
     await p1.createNote({
       id: "pub-1", userId: "admin-1", role: "admin",
@@ -409,26 +409,51 @@ describe("TenantDB — offline sync", () => {
       id: "priv-staff", userId: "staff-1", role: "staff",
       visibility: "private", liturgicalDate: DATE, title: "Staff private", body: "s",
     });
-    await p1.deleteNote({ noteId: "pub-1", userId: "admin-1", role: "admin" });
 
-    // admin-1 pulls: sees the public tombstone, NOT staff-1's private note.
-    const adminPage = await p1.pullChanges({ sinceSeq: 0, limit: 200, userId: "admin-1" });
-    const adminIds = adminPage.changes.map((c) => c.id);
-    expect(adminIds).toContain("pub-1");
-    expect(adminIds).not.toContain("priv-staff");
-    const tomb = adminPage.changes.find((c) => c.id === "pub-1");
+    // Bootstrap (since=0): live notes, visibility-filtered. A fresh
+    // device has no local data, so deletions are irrelevant to it.
+    const boot = await p1.pullChanges({ sinceSeq: 0, limit: 200, userId: "admin-1" });
+    expect(boot.changes.map((c) => c.id)).toContain("pub-1");
+    expect(boot.changes.map((c) => c.id)).not.toContain("priv-staff");
+    expect(boot.changes.every((c) => c.deleted_at === null)).toBe(true);
+
+    // staff-1 bootstraps and DOES see their own private note.
+    const staffBoot = await p1.pullChanges({ sinceSeq: 0, limit: 200, userId: "staff-1" });
+    expect(staffBoot.changes.map((c) => c.id)).toContain("priv-staff");
+
+    // Incremental from that cursor MUST carry the tombstone, so a device
+    // that already holds the note deletes it locally.
+    await p1.deleteNote({ noteId: "pub-1", userId: "admin-1", role: "admin" });
+    const incr = await p1.pullChanges({
+      sinceSeq: boot.nextSince, limit: 200, userId: "admin-1",
+    });
+    const tomb = incr.changes.find((c) => c.id === "pub-1");
+    expect(tomb).toBeDefined();
     expect(tomb?.deleted_at).not.toBeNull();
 
-    // staff-1 pulls: sees their own private note.
-    const staffPage = await p1.pullChanges({ sinceSeq: 0, limit: 200, userId: "staff-1" });
-    expect(staffPage.changes.map((c) => c.id)).toContain("priv-staff");
-
-    // Incremental: pulling again from the cursor returns nothing new.
+    // Nothing new after that.
     const again = await p1.pullChanges({
-      sinceSeq: staffPage.nextSince, limit: 200, userId: "staff-1",
+      sinceSeq: incr.nextSince, limit: 200, userId: "admin-1",
     });
     expect(again.changes).toHaveLength(0);
     expect(again.hasMore).toBe(false);
+  });
+
+  it("bootstrap pull returns notes that predate the change feed", async () => {
+    // Regression: notes written before note_changes existed have no feed
+    // row. Bootstrap must read the notes table, not the journal.
+    await env.DB.prepare(
+      `INSERT INTO liturgical_notes
+         (id, parish_id, author_user_id, visibility, liturgical_date, title, body)
+       VALUES ('legacy-note','parish-1','admin-1','parish_public','2026-08-02','Legacy','pre-existing')`,
+    ).run();
+    const feed = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM note_changes WHERE note_id = 'legacy-note'`,
+    ).first<{ n: number }>();
+    expect(feed?.n).toBe(0); // no feed row, exactly like production
+
+    const page = await db().pullChanges({ sinceSeq: 0, limit: 200, userId: "admin-1" });
+    expect(page.changes.map((c) => c.id)).toContain("legacy-note");
   });
 
   it("cross-parish: a mutation against another parish's note is invisible", async () => {

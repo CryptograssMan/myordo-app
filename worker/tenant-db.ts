@@ -636,6 +636,52 @@ export class TenantDB {
     userId: string;
   }): Promise<PullPage> {
     const limit = Math.max(1, Math.min(input.limit, 200));
+
+    // Bootstrap (since=0) reads from liturgical_notes directly rather
+    // than the change feed. The feed is an INCREMENTAL index; treating
+    // it as the source of truth means any note without a feed row (e.g.
+    // written before the feed existed) is invisible forever. A first
+    // sync must reflect the table, not the journal. Tombstones are
+    // skipped here — a device with no local data needs live notes only.
+    if (input.sinceSeq === 0) {
+      const [notes, head] = await Promise.all([
+        this.db
+          .prepare(
+            `SELECT n.id, n.visibility, n.liturgical_date, n.title, n.body,
+                    n.version, n.updated_at, n.deleted_at, n.author_user_id,
+                    CASE WHEN n.visibility = 'parish_public'
+                         THEN substr(
+                                COALESCE(editor.email, author.email),
+                                1,
+                                instr(COALESCE(editor.email, author.email), '@') - 1
+                              )
+                         ELSE NULL
+                    END AS attribution
+             FROM liturgical_notes n
+             JOIN users author ON author.id = n.author_user_id
+             LEFT JOIN users editor ON editor.id = n.last_edited_by_user_id
+             WHERE n.parish_id = ?1
+               AND n.deleted_at IS NULL
+               AND (n.visibility = 'parish_public'
+                    OR (n.visibility = 'private' AND n.author_user_id = ?2))
+             ORDER BY n.updated_at DESC`,
+          )
+          .bind(this.parishId, input.userId)
+          .all<PulledNote>(),
+        this.db
+          .prepare(
+            `SELECT COALESCE(MAX(seq), 0) AS head FROM note_changes WHERE parish_id = ?1`,
+          )
+          .bind(this.parishId)
+          .first<{ head: number }>(),
+      ]);
+      return {
+        changes: notes.results,
+        nextSince: head?.head ?? 0,
+        hasMore: false,
+      };
+    }
+
     const { results } = await this.db
       .prepare(
         `SELECT c.seq, n.id, n.visibility, n.liturgical_date, n.title, n.body,
