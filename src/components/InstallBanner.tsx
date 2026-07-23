@@ -78,37 +78,30 @@ export function InstallBanner({ language }: { language?: "en" | "tl" }) {
     }
 
     const ios = isIos();
-    if (!ios && !stashedPrompt) {
-      // Chromium may fire beforeinstallprompt after mount — listen once.
-      const onBip = () => setCanPrompt(true);
-      window.addEventListener("beforeinstallprompt", onBip, { once: true });
-      // Show nothing until we actually have a prompt (avoids a dead button).
-      const t = setTimeout(() => {
-        if (stashedPrompt) {
-          setCanPrompt(true);
-          setVisible(true);
-        }
-      }, 800);
-      return () => {
-        window.removeEventListener("beforeinstallprompt", onBip);
-        clearTimeout(t);
-      };
-    }
 
-    // Repo convention: state updates happen inside a scheduled callback,
-    // not synchronously in the effect body (react-hooks/set-state-in-effect).
+    // Single path: become visible when eligible, and track prompt
+    // availability separately. beforeinstallprompt can fire well after
+    // mount (slow networks, late SW activation) — the banner must not
+    // depend on a race with a timer.
     const show = setTimeout(() => {
       setCanPrompt(!ios && stashedPrompt !== null);
       setVisible(true);
     }, 0);
+
+    // Chromium: if the prompt arrives later, upgrade the banner in place
+    // from instructions to a real Install button.
+    const onBip = () => setCanPrompt(true);
+    window.addEventListener("beforeinstallprompt", onBip);
 
     const onInstalled = () => {
       writeState({ ...readState(), installed: true });
       setVisible(false);
     };
     window.addEventListener("appinstalled", onInstalled);
+
     return () => {
       clearTimeout(show);
+      window.removeEventListener("beforeinstallprompt", onBip);
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
@@ -129,14 +122,25 @@ export function InstallBanner({ language }: { language?: "en" | "tl" }) {
   }
 
   async function install() {
-    if (!stashedPrompt) return;
-    await stashedPrompt.prompt();
-    const choice = await stashedPrompt.userChoice;
-    if (choice.outcome === "accepted") {
-      writeState({ ...readState(), installed: true });
+    if (!stashedPrompt) {
+      setCanPrompt(false); // show the manual instructions instead
+      return;
     }
-    stashedPrompt = null;
-    setVisible(false);
+    try {
+      await stashedPrompt.prompt();
+      const choice = await stashedPrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        writeState({ ...readState(), installed: true });
+        setVisible(false);
+      }
+      // Dismissed: leave the banner up so they can try again.
+      stashedPrompt = null;
+    } catch {
+      // Stale/already-consumed event (Chrome throws InvalidStateError).
+      // Never fail silently — degrade to the manual route.
+      stashedPrompt = null;
+      setCanPrompt(false);
+    }
   }
 
   return (
@@ -158,15 +162,29 @@ export function InstallBanner({ language }: { language?: "en" | "tl" }) {
               without signal.
             </>
           )
+        ) : canPrompt ? (
+          tl ? (
+            <>
+              I-install ang myORDO sa iyong device — gagana ang iyong kalendaryo
+              at mga tala kahit walang signal.
+            </>
+          ) : (
+            <>
+              Install myORDO on your device — your calendar and notes will work
+              even without signal.
+            </>
+          )
         ) : tl ? (
           <>
-            I-install ang myORDO sa iyong device — gagana ang iyong kalendaryo at
-            mga tala kahit walang signal.
+            I-install ang myORDO: buksan ang menu ng Chrome (⋮) at piliin ang{" "}
+            <strong>&ldquo;Install app&rdquo;</strong> — gagana ito kahit walang
+            signal.
           </>
         ) : (
           <>
-            Install myORDO on your device — your calendar and notes will work even
-            without signal.
+            Install myORDO: open the Chrome menu (⋮) and choose{" "}
+            <strong>&ldquo;Install app&rdquo;</strong> — it works even without
+            signal.
           </>
         )}
       </span>
