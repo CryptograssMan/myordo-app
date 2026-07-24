@@ -21,35 +21,38 @@ export function SyncStatusStrip({
   sessionExpired: boolean;
   language?: "en" | "tl";
 }) {
-  const [, setTick] = useState(0);
-  const [online, setOnline] = useState(navigator.onLine);
+  const [now, setNow] = useState(() => Date.now());
   const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => subscribeSync(() => setTick((t) => t + 1)), []);
+  useEffect(() => subscribeSync(() => setNow(Date.now())), []);
 
+  // Re-render periodically so contact age (and therefore the strip) stays
+  // current even with no sync events.
   useEffect(() => {
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
-    // navigator.onLine can change without an event firing (PWA cold start,
-    // wake from sleep). Poll cheaply so the strip can't get stuck.
-    const poll = setInterval(() => setOnline(navigator.onLine), 5000);
-    return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
-      clearInterval(poll);
-    };
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
   }, []);
 
   const s = syncState();
   const tl = language === "tl";
 
+  // EVIDENCE, NOT CLAIMS. We say "offline" only when a request actually
+  // threw (status === "offline") AND the server has not answered us
+  // recently. navigator.onLine is deliberately NOT trusted to assert
+  // offline — it reports only whether a network interface exists and can
+  // read false on a fully connected machine, which is exactly how this
+  // component ended up lying to users on desktop.
+  const contactAgeMs = s.lastContactAt
+    ? now - new Date(s.lastContactAt).getTime()
+    : Number.POSITIVE_INFINITY;
+  const recentlyReached = contactAgeMs < 120_000; // 2 min
+  const trulyOffline = s.status === "offline" && !recentlyReached;
+
   // Self-heal: browser says online but the engine is still parked on a
   // stale "offline" from a transient cold-start failure (e.g. the first
   // /api/me fired before the service worker finished claiming). Re-run
   // once rather than leaving a false "offline" on screen.
-  const stale = online && s.status === "offline";
+  const stale = s.status === "offline" && recentlyReached;
   useEffect(() => {
     if (!stale || retrying) return;
     const t = setTimeout(() => {
@@ -60,7 +63,7 @@ export function SyncStatusStrip({
   }, [stale, retrying]);
 
   // --- Genuinely offline -------------------------------------------
-  if (!online) {
+  if (trulyOffline) {
     if (sessionExpired) {
       return (
         <div className="syncstrip syncstrip--warning" role="status">

@@ -46,11 +46,28 @@ interface SyncState {
   status: SyncStatus;
   lastSyncAt: string | null;
   pendingCount: number;
+  /**
+   * Last time the SERVER ANSWERED US AT ALL — any status code. This is
+   * positive evidence of connectivity and outranks navigator.onLine,
+   * which only reports whether a network interface exists and is known
+   * to report false on a perfectly connected machine.
+   */
+  lastContactAt: string | null;
 }
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
-let state: SyncState = { status: "idle", lastSyncAt: null, pendingCount: 0 };
+let state: SyncState = {
+  status: "idle",
+  lastSyncAt: null,
+  pendingCount: 0,
+  lastContactAt: null,
+};
+
+/** Record that the server responded — proof we are online. */
+function markContact() {
+  state = { ...state, lastContactAt: new Date().toISOString() };
+}
 
 export function syncState(): SyncState {
   return state;
@@ -109,8 +126,8 @@ export async function refreshSnapshot(): Promise<Reach> {
   } catch {
     return "network_error"; // genuinely unreachable
   }
+  markContact(); // the server answered; we are online whatever it said
   if (res.status === 401 || res.status === 403) return "auth_required";
-  // The server answered — we are online, whatever it said.
   if (!res.ok) return "server_error";
 
   const me = (await res.json()) as MeResponse;
@@ -192,6 +209,7 @@ async function pushOutbox(parishId: string): Promise<Reach> {
       await markAttempted(batch, "network");
       return "network_error";
     }
+    markContact();
     if (res.status === 401 || res.status === 403) return "auth_required";
     if (!res.ok) {
       await markAttempted(batch, `http_${res.status}`);
@@ -299,6 +317,7 @@ async function pullChanges(parishId: string): Promise<Reach> {
     } catch {
       return "network_error";
     }
+    markContact();
     if (res.status === 401 || res.status === 403) return "auth_required";
     if (!res.ok) return "server_error";
     const page = (await res.json()) as PullPage;
