@@ -32,7 +32,15 @@ import {
 
 // --- Events -----------------------------------------------------------
 
+/**
+ * "offline"       — the network is unreachable (fetch threw).
+ * "error"         — the server RESPONDED with a failure. We are online;
+ *                   saying "offline" here would be a lie to the user.
+ * "auth_required" — session invalid; needs an online sign-in.
+ */
 export type SyncStatus = "idle" | "syncing" | "offline" | "auth_required" | "error";
+
+type Reach = "ok" | "auth_required" | "network_error" | "server_error";
 
 interface SyncState {
   status: SyncStatus;
@@ -94,15 +102,16 @@ interface MeResponse {
  * but absent from the fresh one has been revoked — its local partition
  * (notes, outbox, conflicts, cursor) is wiped.
  */
-export async function refreshSnapshot(): Promise<"ok" | "auth_required" | "offline"> {
+export async function refreshSnapshot(): Promise<Reach> {
   let res: Response;
   try {
     res = await fetch("/api/me");
   } catch {
-    return "offline";
+    return "network_error"; // genuinely unreachable
   }
   if (res.status === 401 || res.status === 403) return "auth_required";
-  if (!res.ok) return "offline";
+  // The server answered — we are online, whatever it said.
+  if (!res.ok) return "server_error";
 
   const me = (await res.json()) as MeResponse;
   const prior = await getSnapshot();
@@ -158,7 +167,7 @@ interface PushResultRejected {
 }
 type PushResult = PushResultApplied | PushResultConflict | PushResultRejected;
 
-async function pushOutbox(parishId: string): Promise<"ok" | "offline"> {
+async function pushOutbox(parishId: string): Promise<Reach> {
   const outbox = await outboxForParish(parishId);
   if (outbox.length === 0) return "ok";
 
@@ -181,11 +190,12 @@ async function pushOutbox(parishId: string): Promise<"ok" | "offline"> {
       });
     } catch {
       await markAttempted(batch, "network");
-      return "offline";
+      return "network_error";
     }
+    if (res.status === 401 || res.status === 403) return "auth_required";
     if (!res.ok) {
       await markAttempted(batch, `http_${res.status}`);
-      return "offline";
+      return "server_error";
     }
 
     const { results } = (await res.json()) as { results: PushResult[] };
@@ -280,16 +290,17 @@ interface PullPage {
   hasMore: boolean;
 }
 
-async function pullChanges(parishId: string): Promise<"ok" | "offline"> {
+async function pullChanges(parishId: string): Promise<Reach> {
   for (;;) {
     const since = await getSyncCursor(parishId);
     let res: Response;
     try {
       res = await fetch(`/api/sync/pull?since=${since}&limit=200`);
     } catch {
-      return "offline";
+      return "network_error";
     }
-    if (!res.ok) return "offline";
+    if (res.status === 401 || res.status === 403) return "auth_required";
+    if (!res.ok) return "server_error";
     const page = (await res.json()) as PullPage;
 
     const pending = await outboxForParish(parishId);
@@ -336,8 +347,22 @@ let backoffTimer: ReturnType<typeof setTimeout> | null = null;
 
 export async function syncNow(): Promise<void> {
   // Web Lock: one cycle at a time, across tabs (spec §7 multiple-tabs).
+  // NOTE: locks are per-ORIGIN, so an installed PWA window and an open
+  // browser tab contend with each other. ifAvailable means we skip
+  // rather than queue — fine, because the other holder is doing the same
+  // work. But the skip must not leave a stale status behind, so callers
+  // that need certainty use forceSync().
   await navigator.locks.request("myordo-sync", { ifAvailable: true }, async (lock) => {
-    if (!lock) return; // another tab is syncing
+    if (!lock) return;
+    await runCycle();
+  });
+}
+
+/** Wait for the lock rather than skipping. Used by explicit user retry. */
+export async function forceSync(): Promise<void> {
+  backoffMs = 0;
+  if (backoffTimer) clearTimeout(backoffTimer);
+  await navigator.locks.request("myordo-sync", async () => {
     await runCycle();
   });
 }
@@ -348,10 +373,19 @@ async function runCycle(): Promise<void> {
 
   emit({ status: "syncing" });
 
-  const auth = await refreshSnapshot();
-  if (auth === "offline") {
-    emit({ status: "offline", pendingCount: await pendingTotal() });
+  // Map a reachability result onto user-visible status. Only a thrown
+  // fetch means "offline"; a server response means we ARE online.
+  const fail = async (r: Reach) => {
+    emit({
+      status: r === "network_error" ? "offline" : "error",
+      pendingCount: await pendingTotal(),
+    });
     scheduleBackoff();
+  };
+
+  const auth = await refreshSnapshot();
+  if (auth === "network_error" || auth === "server_error") {
+    await fail(auth);
     return;
   }
   if (auth === "auth_required") {
@@ -366,15 +400,21 @@ async function runCycle(): Promise<void> {
 
   for (const parishId of parishIds) {
     const pushed = await pushOutbox(parishId);
-    if (pushed === "offline") {
-      emit({ status: "offline", pendingCount: await pendingTotal() });
-      scheduleBackoff();
+    if (pushed === "network_error" || pushed === "server_error") {
+      await fail(pushed);
+      return;
+    }
+    if (pushed === "auth_required") {
+      emit({ status: "auth_required", pendingCount: await pendingTotal() });
       return;
     }
     const pulled = await pullChanges(parishId);
-    if (pulled === "offline") {
-      emit({ status: "offline", pendingCount: await pendingTotal() });
-      scheduleBackoff();
+    if (pulled === "network_error" || pulled === "server_error") {
+      await fail(pulled);
+      return;
+    }
+    if (pulled === "auth_required") {
+      emit({ status: "auth_required", pendingCount: await pendingTotal() });
       return;
     }
   }
@@ -411,7 +451,11 @@ export function startSyncTriggers(): void {
   if (started) return;
   started = true;
 
-  window.addEventListener("online", () => void syncNow());
+  window.addEventListener("online", () => {
+    backoffMs = 0; // don't sit in a long backoff after reconnecting
+    if (backoffTimer) clearTimeout(backoffTimer);
+    void syncNow();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void syncNow();
   });
