@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "eslint . && tsc -b && vite build",
+    "build": "npm run clean && eslint . && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "npm run build && vite preview",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm run build && wrangler deploy && npm run verify:deploy",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply myordo-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply myordo-db --remote",
     "test": "vitest run",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "clean": "rm -rf dist node_modules/.vite node_modules/.tmp",
+    "verify:deploy": "node scripts/verify-deploy.mjs",
+    "build:fast": "eslint . && tsc -b && vite build"
   },
   "dependencies": {
     "@romcal/calendar.philippines": "^3.0.0-dev.125",

@@ -664,3 +664,32 @@ sync on reconnect.
   files from `dist/client`; `.dev.vars` lands in `dist/myordo_app/`).
   Checked because an exposed `GOOGLE_CLIENT_SECRET` would be serious — on
   this site a 200 proves nothing, always diff the CONTENT.
+
+## Build/deploy safety rails (2026-07-24)
+
+Cost of NOT having these: two full deploy cycles spent debugging a client
+bug that had already been fixed, because `npm run build` reused stale
+`dist/` output and `wrangler deploy` printed "Uploaded" anyway. Every
+piece of output looked successful. The tell was that the content-hashed
+bundle filename never changed.
+
+Added:
+- `npm run clean` — removes `dist/`, `node_modules/.vite`, and
+  `node_modules/.tmp` (tsc's incremental `.tsbuildinfo` lives there; a
+  stale one makes `tsc -b` skip work and hides the same class of bug).
+- `npm run build` now runs `clean` first. Always. `build:fast` is the
+  documented escape hatch if you knowingly want an incremental rebuild.
+- `scripts/verify-deploy.mjs` + `npm run verify:deploy`, wired into
+  `npm run deploy`. Fetches the live HTML, extracts the `index-*.js`
+  filename, compares it to the local build, retries 5x for edge
+  propagation, then exits NON-ZERO on mismatch with instructions.
+
+**The habit worth keeping:** a deploy is not verified by the deploy tool
+saying "Uploaded". It is verified by the content hash of the live bundle
+matching what you built. `npm run deploy` now does that check for you.
+
+Manual equivalent if you ever need it:
+```
+curl -s https://myordo.cenaclelabs.com/ | grep -o 'index-[A-Za-z0-9_-]*\.js'
+ls dist/client/assets/index-*.js
+```
